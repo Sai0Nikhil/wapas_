@@ -1,0 +1,12 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlmodel>=0.0.16
+pydantic>=2.6
+pydantic-settings>=2.2
+httpx>=0.27
+python-multipart>=0.0.9   # Paytm posts its callback as a form; without this every callback fails
+pyyaml>=6.0
+pycryptodome>=3.20
+qrcode[pil]>=7.4
+psycopg2-binary>=2.9.9
+pytest>=8.0

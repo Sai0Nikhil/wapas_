@@ -1,0 +1,23 @@
+# Wapas policy. The ONLY component allowed to authorise an action.
+# Loading is fail-closed: an unknown key, a missing key or a bad value stops startup.
+# Rules run in a fixed order; the first match wins; anything unmatched is BLOCK.
+#   1 opted_out         customer said STOP                  -> BLOCK
+#   2 never_money_back  refunds / reversals                 -> BLOCK
+#   3 reminder_cap      link + max_reminders already sent   -> BLOCK (shown as "stopped by policy")
+#   4 duplicate         open link for same order recently   -> BLOCK
+#   5 not_allowlisted   action not in allowed_actions       -> BLOCK
+#   6 quiet_hours       outside sending hours (IST)         -> HOLD until morning
+#   7 owner_limit       above amount limit / low confidence / VIP -> ASK_OWNER
+#   8 default_allow                                         -> ALLOW
+version: "wapas-1"
+allowed_actions: [payment_link, no_action]
+never_automatic: [refund]
+limits:
+  auto_max_amount_inr: 5000
+  min_confidence: 0.80
+  max_reminders: 2
+  duplicate_window_minutes: 60
+quiet_hours:
+  start: "21:00"
+  end: "09:00"
+ask_owner_for_vip: true

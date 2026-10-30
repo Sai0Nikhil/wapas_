@@ -1,0 +1,633 @@
+PAY T M B U I L D F O R I N D I A A I H AC K AT H O N · T R AC K 3 : A U TO N O M O U S A I
+T E A M M AT E S
+
+Wapas
+
+The autonomous merchant revenue
+teammate.
+See the leak. Choose the recovery. Act in the customer’s language.
+Prove the outcome.
+
+Team
+
+College
+
+Rushmanth Nalluri · Sai Nikhil Vukka
+
+KL University
+
+0 1 · P R O B L E M STAT E M E N T
+
+Payment infrastructure is everywhere. Revenue
+recovery is still an operations job.
+
+24.51 bn
+
+₹29.82 tn
+
+1.57 crore
+
+UPI transactions in August 2026
+
+UPI value in the same month
+
+Paytm Soundbox storefronts, Q1
+FY27
+
+E V E RY FA I L E D PAY M E N T C R E AT E S A R E C OV E RY J O B
+
+Who?
+
+Why?
+
+What?
+
+When?
+
+Which customers should be
+contacted
+
+What made each payment fail
+
+The safest next action for each
+
+When to stop following up
+
+Sources: NPCI data via Business Standard, 1 Sep 2026 · Paytm Q1 FY27 earnings call, Paytm Investor Relations
+
+2
+
+02 · PROPOSED SOLUTION
+
+One job: recover eligible revenue without making
+the merchant chase it.
+U N D E R S TA N D
+
+DECIDE
+
+DELIVER
+
+Signal
+
+Plan
+
+Act, exactly once
+
+Investigate
+
+Policy check
+
+Verify with Paytm
+
+Quantify
+
+Owner approval, if needed
+
+Learn
+
+Spots the failure, finds the likely cause,
+and puts a rupee value on it.
+
+Picks who, when, how and in which
+language, then the rules decide.
+
+Closes a case only when Paytm confirms
+payment, then remembers what worked.
+
+AI chooses the plan. It never gets authority to move money.
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+3
+
+0 2 · P R O P O S E D S O L U T I O N · H OW I T D E C I D E S · I L L U ST R AT I V E CAS E
+
+Every case is a decision, not a message.
+T H E CA S E
+
+OPTIONS WEIGHED
+
+THE DECISION
+
+Customer
+
+Retry now
+
+Policy
+
+Rahul · ₹2,340 · order #A118
+
+Rejected: bank still degraded
+
+ALLOW, no approval needed
+
+Failure
+
+Link once the bank recovers
+
+Action
+
+Bank timeout at 7:02 PM
+
+Chosen: brief outage, good payer
+
+One Paytm link, in Hindi
+
+History
+
+Ask the owner
+
+Stops when
+
+11 on-time payments before
+
+Not needed: under ₹5,000 limit
+
+Paid, opt-out or 2 reminders
+
+Context
+
+Do nothing
+
+Counts when
+
+Same bank failing for others
+
+Rejected: likely a lost sale
+
+Paytm confirms the payment
+
+Not “an LLM with tools”. A bounded agent that owns an outcome.
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+4
+
+0 2 · P R O P O S E D S O L U T I O N · I L L U ST R AT I V E S C E N A R I O, N OT A M E AS U R E D R E S U LT
+
+One incident. One owner. No chasing.
+7:02 PM
+Signal
+
+14 UPI payments fail within 15 minutes at an electronics store in
+Bengaluru
+
+7:03 PM
+Diagnosis
+
+Likely bank-side degradation. Evidence: failures concentrated on one
+bank, other banks normal, and these customers usually pay
+
+7:05 PM
+
+Decides an action for each of the 14 cases, in each customer’s
+language
+
+Plan
+7:25 PM
+Policy
+Later
+Verify
+
+9 go out automatically, one link each. 2 wait for the owner. 3 are
+blocked by policy
+Each case closes only after a Paytm status check confirms payment.
+Follow-up stops on payment, opt-out, or two reminders
+
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+5
+
+0 2 · P R O P O S E D S O L U T I O N · I N D I A- F I R ST
+
+Language adapts. Policy doesn’t.
+Customer
+
+Replies in Telugu, by text or voice
+
+Wapas
+
+Understands it, then acts
+
+Policy
+
+Same rules as in any language
+
+Outcome
+
+Same Paytm verification
+
+Sarvam: speech-to-text in 22 Indian languages,
+speech in 11
+
+Sources: Sarvam API docs (Saaras speech-to-text, Bulbul v3 text-to-speech)
+
+6
+
+0 3 · T E C H N O LO GY / T E C H STAC K U S E D
+
+Paytm moves the money. Sarvam speaks India.
+PAY M E N T S · PAY T M
+
+A I AG E N T · S A R VA M
+
+VO I C E · S A R VA M
+
+JS Checkout · Payment Links
+
+Sarvam-105B
+
+Saaras speech-to-text
+
+Transaction Status API v3
+Webhooks + checksum
+
+Tool calling · strict JSON
+
+Bulbul v3 text-to-speech
+
+Diagnoses each case; reads customer
+replies
+
+Hindi, Telugu, Tamil, Kannada and more
+
+CONTROL PLANE
+
+DATA & O W N E R C H A N N E L
+
+CONSOLE & QUALITY
+
+Python · FastAPI
+
+SQLModel · SQLite
+
+Owner console (HTML/JS)
+
+Fail-closed policy engine
+
+Telegram Bot API
+
+108 automated tests
+
+Idempotent executor
+
+Outcome memory, evidence log, signed
+approvals
+
+pytest and Playwright; integration doctor
+
+Every payment action, and every
+confirmation
+
+Decides AUTO / OWNER / BLOCK; sends
+once
+
+Hackathon partner used: Sarvam · Payments: Paytm Payment Gateway (test environment)
+
+7
+
+0 3 · T E C H N O LO GY · SA F E T Y B Y D E S I G N
+
+The AI never gets authority to move money
+AI agent
+Proposes a plan
+
+→
+
+Policy engine
+Allow · ask owner ·
+block
+
+→
+
+Executor
+One action, sent
+once
+
+→
+
+Paytm
+Payment happens,
+or not
+
+→
+
+Verifier
+Counts it only if
+confirmed
+
+AI proposes. Policy authorizes. Code executes. Paytm confirms.
+Learning never experiments on live customers; it only reads Paytm-verified outcomes.
+
+A L LO W
+
+ASK OWNER
+
+B LO C K
+
+Wapas acts alone
+
+Owner approves in one tap
+
+Never automatic
+
+Within the owner’s limit, clear cause,
+customer not opted out, under two
+reminders
+
+Above the limit, low confidence, or a
+loyal, high-value customer
+
+Refunds, reversals and disputes. A
+Paytm API error pauses; nothing is sent
+twice
+
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+8
+
+04 · USP
+
+Others show the failure or send reminders. Wapas
+finishes the job.
+Dashboard
+
+Reminder tool
+
+Wapas
+
+Decides whether, when and whom to contact, per case, with reasons
+
+—
+
+Fixed schedule
+
+✓
+
+Understands customer replies in Indian languages, by text or voice
+
+—
+
+—
+
+✓
+
+Counts money only when Paytm confirms the exact amount
+
+—
+
+—
+
+✓
+
+Asks the owner only when it matters, with a signed one-tap approval
+
+—
+
+—
+
+✓
+
+AI can never move money; no experiments on live customers
+
+—
+
+—
+
+✓
+
+Bounded autonomy with proof: the AI decides, policy authorizes, Paytm confirms.
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+9
+
+0 4 · U S P · B U I LT O N PAY T M ’ S R A I L S
+
+Paytm provides the primitives. Wapas orchestrates
+the job.
+PAY T M P R OV I D E S
+
+→
+
+WA PA S A D D S
+
+Payment Links
+
+→ Decides when a link is the right move, and for whom
+
+Automatic reminders
+
+→ Chooses the timing, the language, and when to stop
+
+Paytm JS Checkout
+
+→ Turns a failed checkout into a case, even if the callback is lost
+
+Webhooks and callbacks
+
+→ Triggers the next step the moment an event arrives
+
+Transaction Status API
+
+→ Counts a recovery only once Paytm confirms it
+
+Paytm owns the rails. Wapas owns the job.
+Sources: Paytm Payment Links (business.paytm.com/payment-link) · Paytm developer docs (business.paytm.com/docs)
+
+10
+
+0 5 · I M PAC T & B E N E F I T S
+
+Money comes back, and nobody has to chase it.
+FOR THE MERCHANT
+
+F O R T H E C U S TO M E R
+
+F O R PAY T M
+
+Revenue back from failed payments,
+without chasing anyone
+
+One clear link, in their own language
+
+More failed payments completed on
+Paytm rails
+
+Owner time only for the cases that need
+judgment
+Every rupee shown is one Paytm
+confirmed
+
+Never asked to pay twice when money
+was debited
+Can reply in their own words; STOP is
+respected
+
+Deeper use of Payment Links, status APIs
+and webhooks
+A daily reason for merchants to use the
+Paytm app
+
+At 24.51 bn UPI payments a month, small recoveries add up.
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+11
+
+0 5 · I M PAC T · H OW W E M E AS U R E I T
+
+We measure verified outcomes, not agent activity
+METHOD
+
+Eligible cases
+
+→
+
+Random hold-out
+
+→
+
+Wapas acts on the
+rest
+
+→
+
+Paytm-confirmed
+payments
+
+→
+
+Compare the
+groups
+
+Primary
+
+Incremental
+
+Efficiency
+
+Human load
+
+Safety
+
+Verified recovery
+rate
+
+Uplift over hold-out
+
+Outreach per
+recovery
+
+Escalation rate
+
+Duplicates,
+breaches
+
+Share of eligible cases
+paid, confirmed by Paytm
+
+Treated rate minus
+randomized hold-out rate,
+with a 95% CI
+
+Messages sent per verified
+payment
+
+Share of cases the owner
+decides
+
+Target: zero
+
+A successful API call is not a recovery. A confirmed payment is.
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+12
+
+06 · BUSINESS MODEL
+
+We earn only when a verified payment comes back.
+S TA R T
+
+CORE
+
+S CA L E
+
+Free tier
+
+Success fee
+
+Paytm partnership
+
+Small merchants start free with a
+monthly cap on recovery cases. No
+setup, no hardware.
+
+A small share of the recovered
+amount, charged only on payments
+Paytm has confirmed. No recovery, no
+fee.
+
+Bundled into Paytm for Business or
+device plans, with a revenue share.
+
+COSTS
+
+G O TO M A R K E T
+
+A few model calls, one payment link and a few messages per
+case
+
+Pilot with Paytm merchants in one city, then inside the Paytm for
+Business app
+
+Proposed model; the fee level and free-tier cap will be set from pilot data.
+
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+13
+
+07 · B U I L D P L A N F O R 3 O C TO B E R
+
+Eight hours to prove one autonomous job
+Time
+
+Build
+
+Proof at the end of the block
+
+0–2 h
+
+Connect
+
+A failed payment event reaches Wapas from the Paytm test environment
+
+2–4 h
+
+Orchestrate
+
+The agent plans each case, and the policy gates it
+
+4–6 h
+
+Execute
+
+A real test-mode payment link, closed by a status check
+
+6–8 h
+
+Break it
+
+Duplicate events, API errors and approvals, all handled safely
+
+We are not building breadth. We are proving one autonomous job, end to end.
+Wapas · Paytm Build for India AI Hackathon · Track 3: Autonomous AI Teammates
+
+14
+
+WA PA S
+
+See. Decide. Recover. Prove.
+Every Paytm merchant deserves a teammate who chases the money for them.
+
+Rushmanth Nalluri · Sai Nikhil Vukka · KL University
+
+rushmanth21@gmail.com
+
+

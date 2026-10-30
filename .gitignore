@@ -1,0 +1,17 @@
+.env
+*.db
+__pycache__/
+.venv/
+.pytest_cache/
+
+# Stitch UI designs / raw screens
+*stitch*
+*Stitch*
+*.png
+*.jpg
+phone_*.png
+
+# Flutter build artifacts
+wapas_app/build/
+wapas_app/.dart_tool/
+.gradle/

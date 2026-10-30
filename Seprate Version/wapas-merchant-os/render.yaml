@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: wapas-staging
+    runtime: python
+    region: oregon
+    plan: standard
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: WAPAS_ENV
+        value: staging
+      - key: APP_ENV
+        value: staging
+      - key: TIMEZONE
+        value: Asia/Kolkata
+      - key: GATEWAY
+        value: paytm
+      - key: PAYTM_LIVE_ENABLED
+        value: "false"
+      - key: PAYTM_TEST_ENABLED
+        value: "true"
+      - key: PAYTM_HOST
+        value: https://securestage.paytmpayments.com
+      - key: PAYTM_MID
+        sync: false
+      - key: PAYTM_MERCHANT_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: TELEGRAM_ENABLED
+        value: "true"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_OWNER_CHAT_ID
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wapas-staging-db
+          property: connectionString
+
+databases:
+  - name: wapas-staging-db
+    # Use Render's current PostgreSQL plan identifier.
+    plan: 0.5c-1g
+    region: oregon
+    databaseName: wapas_staging
+    user: wapas_admin

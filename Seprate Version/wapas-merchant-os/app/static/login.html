@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="same-origin">
+  <title>Sign in · Wapas</title>
+  <style>
+    :root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#101828;background:#f7f6f2}
+    *{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:18px}
+    main{width:min(100%,420px);background:white;border:1px solid #dedbd3;border-radius:18px;padding:28px;box-shadow:0 14px 40px #10182812}
+    h1{margin:0 0 5px;font-size:26px}.brand{font-weight:800;letter-spacing:.02em;color:#1746c8}
+    p{color:#596273;line-height:1.45}.form{display:grid;gap:14px;margin-top:22px}
+    label{display:grid;gap:6px;font-size:13px;font-weight:650}input,select{font:inherit;padding:11px 12px;border:1px solid #c9ccd3;border-radius:9px;background:white;color:inherit}
+    input:focus,select:focus,button:focus-visible{outline:3px solid #bfd0ff;outline-offset:1px}
+    button{font:inherit;font-weight:700;border:0;border-radius:9px;background:#1746c8;color:white;padding:12px;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}.error{min-height:20px;color:#a33228;font-size:13px;margin:0}.status{min-height:20px;font-size:13px;margin:0}
+    .help{font-size:12px;margin-top:18px}
+    .mode-switch{display:flex;gap:6px;margin:18px 0 14px;background:#edeae1;padding:4px;border-radius:10px}
+    .tab-btn{flex:1;border:0;background:transparent;color:#596273;font:inherit;font-size:13px;font-weight:600;padding:8px;border-radius:7px;cursor:pointer}
+    .tab-btn.active{background:white;color:#101828;box-shadow:0 1px 3px #10182810}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">Wapas</div>
+    <div class="mode-switch">
+      <button type="button" id="tab-login" class="tab-btn active">Sign in</button>
+      <button type="button" id="tab-register" class="tab-btn">Register store</button>
+    </div>
+    <div id="login-section">
+      <h1>Sign in to your store</h1>
+      <p>Use your merchant account to open the owner console.</p>
+      <form id="login-form" class="form" autocomplete="on">
+        <label for="username">Username<input id="username" name="username" autocomplete="username" required maxlength="120"></label>
+        <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+        <div id="workspace-choice" hidden>
+          <label for="membership">Merchant and store<select id="membership" name="membership_id"></select></label>
+        </div>
+        <button id="submit" type="submit">Sign in</button>
+        <p id="message" class="error" role="alert" aria-live="polite"></p>
+        <p id="status" class="status" aria-live="polite"></p>
+      </form>
+      <p class="help">If your account has no active store membership, ask the merchant owner to provision it.</p>
+    </div>
+    <div id="register-section" hidden>
+      <h1>Open a new store</h1>
+      <p>Create a merchant account and launch your digital store.</p>
+      <form id="register-form" class="form" autocomplete="off">
+        <label for="reg-business">Business name<input id="reg-business" name="business_name" required placeholder="e.g. Sri Krishna Retail" maxlength="120"></label>
+        <label for="reg-store">Store name<input id="reg-store" name="store_name" required placeholder="e.g. Koramangala Main" maxlength="120"></label>
+        <label for="reg-username">Owner username<input id="reg-username" name="username" required placeholder="letters, numbers, dot, underscore" maxlength="120"></label>
+        <label for="reg-password">Password (14+ chars, letters &amp; numbers/symbols)<input id="reg-password" name="password" type="password" required minlength="14" maxlength="1024"></label>
+        <label for="reg-city">City<input id="reg-city" name="city" placeholder="e.g. Bengaluru" maxlength="100"></label>
+        <label for="reg-phone">Phone<input id="reg-phone" name="phone" placeholder="e.g. 9876543210" maxlength="20"></label>
+        <button id="reg-submit" type="submit">Register &amp; Open Store</button>
+        <p id="reg-message" class="error" role="alert" aria-live="polite"></p>
+        <p id="reg-status" class="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </main>
+  <script src="/static/login.js" defer></script>
+</body>
+</html>
