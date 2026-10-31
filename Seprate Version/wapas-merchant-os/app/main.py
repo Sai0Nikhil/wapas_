@@ -164,8 +164,8 @@ STAFF_API_PREFIXES = ("/api/merchant/catalog/", "/api/merchant/orders", "/api/me
 def _same_origin(request: Request) -> bool:
     origin = request.headers.get("origin", "")
     host = (request.headers.get("x-forwarded-host") or request.headers.get("host", "")).lower()
-    if not origin or not host:
-        return False
+    if not origin:
+        return True
     try:
         parsed = urlsplit(origin)
         if parsed.scheme not in {"http", "https"}:
