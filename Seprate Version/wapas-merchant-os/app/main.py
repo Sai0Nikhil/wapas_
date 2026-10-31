@@ -124,6 +124,12 @@ async def lifespan(app: FastAPI):
         with session() as s:
             if not s.exec(select(Customer)).first():
                 seed.seed(s)
+            from .auth_models import User
+            if not s.exec(select(User).where(User.username == "admin")).first():
+                from .auth import create_user_membership
+                create_user_membership("admin", "password12345678", DEFAULT_MERCHANT_ID, DEFAULT_STORE_ID, "OWNER")
+                create_user_membership("staff", "password12345678", DEFAULT_MERCHANT_ID, DEFAULT_STORE_ID, "STAFF")
+                s.commit()
     t = threading.Thread(target=_worker, daemon=True, name="wapas-worker")
     t.start()
     telegram.start(on_decision=_tg_decision, on_stop=_tg_stop, on_question=_tg_question, on_reply=_tg_reply)
