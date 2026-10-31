@@ -336,25 +336,32 @@ class _SarkarCopilotScreenState extends ConsumerState<SarkarCopilotScreen>
             child: const Icon(Icons.psychology_rounded, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text('Sarkar AI', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
-                  SizedBox(width: 6),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.all(Radius.circular(4)),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Text('Sarkar AI', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.all(Radius.circular(4)),
+                      ),
+                      child: const Text('LIVE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green)),
                     ),
-                    child: Text('LIVE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green)),
-                  ),
-                ],
-              ),
-              Text('Sarvam-105B Neural Brain • ElevenLabs Voice', style: TextStyle(fontSize: 10, color: Color(0xFF777788))),
-            ],
+                  ],
+                ),
+                const Text(
+                  'Sarvam-105B • ElevenLabs Voice',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF777788)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),
