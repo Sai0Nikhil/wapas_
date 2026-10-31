@@ -1376,3 +1376,651 @@ body.fullscreen-mode .judge-toolbar {
 .toast-box[hidden] {
   display: none !important;
 }
+
+/* ========================================================================= */
+/* Android Parity Extensions: QR, Thermal Receipt, Modals, Aging & Scanner   */
+/* ========================================================================= */
+
+.mb-2 { margin-bottom: 8px; }
+.w-100 { width: 100%; }
+
+/* Khata Credit Aging & Risk Buckets Card */
+.aging-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.aging-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.aging-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.aging-total-pill {
+  background: #E0F2FE;
+  color: #0369A1;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.aging-buckets-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.bucket-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.bucket-label {
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.bucket-amt {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.bucket-status {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.bucket-green { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; }
+.bucket-green .bucket-amt { color: #047857; }
+
+.bucket-amber { background: #FFFBEB; border-color: #FDE68A; color: #92400E; }
+.bucket-amber .bucket-amt { color: #B45309; }
+
+.bucket-orange { background: #FFF7ED; border-color: #FED7AA; color: #9A3412; }
+.bucket-orange .bucket-amt { color: #C2410C; }
+
+.bucket-red { background: #FEF2F2; border-color: #FECACA; color: #991B1B; }
+.bucket-red .bucket-amt { color: #DC2626; }
+
+/* Dynamic QR Modal */
+.qr-card {
+  max-width: 360px;
+  text-align: center;
+}
+
+.paytm-brand-logo {
+  font-weight: 900;
+  color: #002970;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+
+.tag-qr {
+  background: #E0F2FE;
+  color: #00BAF2;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.qr-body {
+  padding: 10px 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-scan-instruction {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.qr-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: #002970;
+  margin-bottom: 14px;
+}
+
+.qr-frame-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 4px 16px rgba(0, 41, 112, 0.08);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-canvas-box {
+  width: 180px;
+  height: 180px;
+}
+
+.qr-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 3px solid #00BAF2;
+}
+.qr-corner.top-left { top: -2px; left: -2px; border-right: none; border-bottom: none; border-top-left-radius: 8px; }
+.qr-corner.top-right { top: -2px; right: -2px; border-left: none; border-bottom: none; border-top-right-radius: 8px; }
+.qr-corner.bottom-left { bottom: -2px; left: -2px; border-right: none; border-top: none; border-bottom-left-radius: 8px; }
+.qr-corner.bottom-right { bottom: -2px; right: -2px; border-left: none; border-top: none; border-bottom-right-radius: 8px; }
+
+.qr-timer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.timer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  animation: pulse 1.5s infinite;
+}
+
+/* Thermal Digital Receipt Paper */
+.receipt-card {
+  max-width: 380px;
+  background: #F8FAFC;
+  padding: 16px;
+}
+
+.receipt-paper {
+  background: #fff;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #1E293B;
+}
+
+.receipt-header {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.receipt-brand {
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.receipt-sub {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.receipt-meta {
+  color: #475569;
+  margin-bottom: 2px;
+}
+
+.receipt-cust {
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.receipt-divider-dashed {
+  border-bottom: 1px dashed #CBD5E1;
+  margin: 10px 0;
+}
+
+.receipt-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.receipt-item-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.receipt-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.total-line {
+  display: flex;
+  justify-content: space-between;
+  color: #475569;
+}
+
+.total-line.grand {
+  font-weight: 800;
+  font-size: 14px;
+  color: #0F172A;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #E2E8F0;
+}
+
+.payment-badge-row {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.payment-method-badge {
+  display: inline-block;
+  background: #E0F2FE;
+  color: #0369A1;
+  font-weight: 800;
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.receipt-footer {
+  text-align: center;
+  color: #94A3B8;
+  font-size: 9px;
+  margin-top: 10px;
+}
+
+.receipt-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+/* Parchi & Barcode Scanner Modals */
+.parchi-card, .barcode-card {
+  max-width: 380px;
+}
+
+.viewfinder-box, .barcode-viewfinder {
+  position: relative;
+  background: #0B1C30;
+  border-radius: 12px;
+  height: 180px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.scanner-laser, .laser-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #00BAF2;
+  box-shadow: 0 0 10px #00BAF2, 0 0 20px #00BAF2;
+  animation: laserScan 2s linear infinite;
+}
+
+@keyframes laserScan {
+  0% { top: 10%; }
+  50% { top: 90%; }
+  100% { top: 10%; }
+}
+
+.parchi-preview-paper {
+  background: #FEF9C3;
+  color: #713F12;
+  padding: 10px 16px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  font-family: 'Caveat', cursive, var(--font-sans);
+  font-size: 14px;
+  line-height: 1.4;
+  transform: rotate(-1.5deg);
+}
+
+.ocr-status-pill {
+  position: absolute;
+  bottom: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #38BDF8;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.detected-items-box {
+  background: var(--bg-app);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.detected-items-box h4 {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.detected-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.detected-item-row strong {
+  margin-left: auto;
+  color: var(--text-main);
+}
+
+.sample-barcode {
+  font-size: 32px;
+  letter-spacing: 3px;
+  font-family: monospace;
+  color: #E2E8F0;
+}
+
+.detected-label {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 6px;
+}
+
+.barcode-match-alert {
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #065F46;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+/* Customer Account Detail Drawer Modal */
+.cust-detail-card {
+  max-width: 420px;
+}
+
+.cust-balance-hero {
+  background: var(--surface-low);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  margin: 10px 0 14px;
+}
+
+.bal-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.bal-val {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--brand-blue);
+  margin-top: 2px;
+}
+
+.cust-detail-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.btn-danger-sm {
+  background: #DC2626;
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-success-sm {
+  background: #059669;
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-outline-sm {
+  background: #fff;
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-whatsapp-sm {
+  background: #25D366;
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 8px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ledger-history-box {
+  border-top: 1px solid var(--surface-border);
+  padding-top: 10px;
+}
+
+.ledger-history-box h4 {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--bg-app);
+  border-radius: 8px;
+}
+
+.history-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.history-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.history-time {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.history-amt {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.history-amt.debit { color: #DC2626; }
+.history-amt.credit { color: #059669; }
+
+/* Case Evidence & Policy Drawer Modal */
+.evidence-card {
+  max-width: 440px;
+}
+
+.evidence-tag {
+  background: #E0E7FF;
+  color: #4338CA;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.evidence-body {
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.evidence-box {
+  background: var(--bg-app);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.evidence-box h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 800;
+}
+
+.evidence-box p {
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.policy-badge-allow {
+  color: #059669;
+  font-weight: 700;
+}
+
+.policy-badge-shield {
+  color: #D97706;
+  font-weight: 700;
+}
+
+/* Sarkar Action Proposal Cards inside Chat */
+.sarkar-action-card {
+  background: #F0FDF4;
+  border: 1.5px solid #86EFAC;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.action-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #166534;
+  margin-bottom: 4px;
+}
+
+.action-card-desc {
+  font-size: 11px;
+  color: #15803D;
+  margin-bottom: 8px;
+}
+
+.action-card-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-confirm-action {
+  background: #16A34A;
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-cancel-action {
+  background: transparent;
+  color: #64748B;
+  border: 1px solid #CBD5E1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tts-speaker-btn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+.tts-speaker-btn:hover {
+  opacity: 1;
+}
+
+.btn-spike-reset {
+  cursor: pointer;
+  border: none;
+}

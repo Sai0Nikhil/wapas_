@@ -21,6 +21,21 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
+      - name: Ensure Vercel Environment Variables
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "Setting BACKEND_URL on Vercel project..."
+          curl -s -X POST "https://api.vercel.com/v10/projects/wapas-merchant-portal/env?upsert=true" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"key": "BACKEND_URL", "value": "https://wapas-backend.onrender.com", "type": "plain", "target": ["production", "preview", "development"]}' || true
+
+          curl -s -X POST "https://api.vercel.com/v10/projects/wapas-merchant-portal/env?upsert=true" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"key": "WAPAS_ENV", "value": "production", "type": "plain", "target": ["production", "preview", "development"]}' || true
+
       - name: Deploy to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -28,3 +43,4 @@ jobs:
           echo "Deploying web_portal to Vercel..."
           cd web_portal
           vercel deploy --token="$VERCEL_TOKEN" --prod --yes
+

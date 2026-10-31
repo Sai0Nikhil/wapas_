@@ -140,7 +140,16 @@ async def lifespan(app: FastAPI):
     _stop.set()
 
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Wapas", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 PUBLIC_PREFIXES = ("/s/", "/api/shop/", "/api/public/", "/api/paytm/", "/pay/",
                    "/fakecheckout/", "/static/", "/favicon.ico", "/api/demo/")
@@ -155,16 +164,18 @@ STAFF_API_PREFIXES = ("/api/merchant/catalog/", "/api/merchant/orders", "/api/me
 def _same_origin(request: Request) -> bool:
     origin = request.headers.get("origin", "")
     host = (request.headers.get("x-forwarded-host") or request.headers.get("host", "")).lower()
-    if not origin or not host or request.headers.get("sec-fetch-site", "").lower() == "cross-site":
+    if not origin or not host:
         return False
     try:
         parsed = urlsplit(origin)
-        if parsed.scheme not in {"http", "https"} or (parsed.netloc.lower() != host and not parsed.netloc.lower().endswith(".vercel.app")):
+        if parsed.scheme not in {"http", "https"}:
+            return False
+        is_vercel = parsed.netloc.lower().endswith(".vercel.app") or "vercel" in parsed.netloc.lower()
+        if not is_vercel and parsed.netloc.lower() != host:
             return False
         if parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username or parsed.password:
             return False
-        req_scheme = (request.headers.get("x-forwarded-proto") or request.url.scheme).lower()
-        return parsed.scheme in {"http", "https"}
+        return True
     except ValueError:
         return False
 
@@ -214,6 +225,9 @@ async def identity_security_boundary(request: Request, call_next):
     )
     auth_endpoint = path in AUTH_PATHS
     raw_session = request.cookies.get(auth_api.SESSION_COOKIE, "")
+    auth_header = request.headers.get("authorization", "")
+    if not raw_session and auth_header.startswith("Bearer "):
+        raw_session = auth_header[7:].strip()
     identity = auth.resolve_session(raw_session) if raw_session else None
     if path in {"/api/auth/login", "/api/auth/register"}:
         identity = None
@@ -258,7 +272,7 @@ async def identity_security_boundary(request: Request, call_next):
             csrf_valid = auth.csrf_pair_valid(
                 identity, request.cookies.get(auth_api.CSRF_COOKIE),
                 request.headers.get("x-wapas-csrf"), raw_session,
-            )
+            ) or auth_header.startswith("Bearer ")
             if not _same_origin(request) or not csrf_valid:
                 return _secure_response(JSONResponse({"detail": "A valid same-origin session CSRF token is required"}, status_code=403))
 

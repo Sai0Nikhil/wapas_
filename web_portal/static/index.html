@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/app.css">
-  <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="mobile-frame-mode">
   <div class="view-wrapper">
@@ -51,12 +50,21 @@
         <!-- ==================== TAB 1: POS BILLING ==================== -->
         <section id="pane-billing" class="tab-pane active">
           <div class="pane-content">
+            <!-- Top Fast Action Banner -->
             <div class="quick-banner">
               <div class="banner-text">
-                <strong>Counter Billing</strong>
-                <span>Tap items to add · Instant Soundbox payment</span>
+                <strong>Counter POS Billing</strong>
+                <span>Instant bill & Soundbox acoustic trigger</span>
               </div>
-              <button id="quick-parchi-btn" class="btn-secondary-sm">📸 Scan Parchi</button>
+              <div class="banner-actions">
+                <button id="quick-barcode-btn" class="btn-secondary-sm" title="Scan Barcode">📷 Barcode</button>
+                <button id="quick-parchi-btn" class="btn-secondary-sm" title="Scan Handwritten Receipt">📸 Parchi</button>
+              </div>
+            </div>
+
+            <!-- Search Item Box -->
+            <div class="search-bar-wrap mb-2">
+              <input id="catalog-search" type="text" placeholder="🔍 Search Kirana products (Atta, Oil, Maggi…)">
             </div>
 
             <!-- Customer Phone Input -->
@@ -65,7 +73,9 @@
               <div class="phone-input-row">
                 <span class="prefix">+91</span>
                 <input id="bill-customer-phone" type="tel" placeholder="98765 43220 (Ramesh)" maxlength="10">
-                <button id="quick-cust-btn" class="chip-btn">Ramesh</button>
+                <button id="quick-cust-btn" class="chip-btn" data-phone="9876543220">Ramesh</button>
+                <button class="chip-btn" data-phone="9876543221">Priya</button>
+                <button class="chip-btn" data-phone="9876543222">Suresh</button>
               </div>
             </div>
 
@@ -89,7 +99,8 @@
                   <div class="bill-total-val" id="cart-total-val">₹0.00</div>
                 </div>
                 <div class="bill-action-btns">
-                  <button id="cart-khata-btn" class="btn-outline-primary" disabled>📒 Add to Khata</button>
+                  <button id="cart-clear-btn" class="btn-text text-danger" style="display:none;">Clear</button>
+                  <button id="cart-khata-btn" class="btn-outline-primary" disabled>📒 Khata</button>
                   <button id="cart-pay-btn" class="btn-paytm-primary" disabled>
                     <span>Pay with Paytm</span>
                   </button>
@@ -109,14 +120,16 @@
                   <span class="incident-tag">Paytm Network Recovery</span>
                   <h2 class="incident-title">Autonomous Recovery Tower</h2>
                 </div>
-                <span class="badge-recovery-active">Live Incident</span>
+                <button id="reset-spike-btn" class="badge-recovery-active btn-spike-reset" title="Click to reset spike to 14 cases">
+                  🔄 Reset Spike
+                </button>
               </div>
               <p class="incident-desc">14 failed checkout events split into autonomous execution, owner approvals, and strict zero-duplicate guardrails.</p>
               
               <!-- 4 Metrics Row -->
               <div class="kpi-grid">
                 <div class="kpi-card">
-                  <div class="kpi-num">14</div>
+                  <div class="kpi-num" id="kpi-total-num">14</div>
                   <div class="kpi-lbl">Total Failed</div>
                 </div>
                 <div class="kpi-card kpi-auto">
@@ -128,7 +141,7 @@
                   <div class="kpi-lbl">Owner Review</div>
                 </div>
                 <div class="kpi-card kpi-blocked">
-                  <div class="kpi-num">3</div>
+                  <div class="kpi-num" id="kpi-blocked-num">3</div>
                   <div class="kpi-lbl">Blocked (Safety)</div>
                 </div>
               </div>
@@ -178,9 +191,41 @@
               </div>
             </div>
 
+            <!-- Credit Aging & Risk Buckets Card -->
+            <div class="aging-card">
+              <div class="aging-header">
+                <div class="aging-title">
+                  <span class="icon">⏱️</span> <strong>Credit Aging & Risk Buckets</strong>
+                </div>
+                <span class="aging-total-pill" id="aging-total-pill">Total: ₹3,350</span>
+              </div>
+              <div class="aging-buckets-grid">
+                <div class="bucket-box bucket-green">
+                  <span class="bucket-label">0-30 Days</span>
+                  <span class="bucket-amt" id="bucket-0-30">₹1,550</span>
+                  <span class="bucket-status">Normal</span>
+                </div>
+                <div class="bucket-box bucket-amber">
+                  <span class="bucket-label">31-60 Days</span>
+                  <span class="bucket-amt" id="bucket-31-60">₹950</span>
+                  <span class="bucket-status">Follow-up</span>
+                </div>
+                <div class="bucket-box bucket-orange">
+                  <span class="bucket-label">61-90 Days</span>
+                  <span class="bucket-amt" id="bucket-61-90">₹550</span>
+                  <span class="bucket-status">Attention</span>
+                </div>
+                <div class="bucket-box bucket-red">
+                  <span class="bucket-label">90+ Days</span>
+                  <span class="bucket-amt" id="bucket-90-plus">₹300</span>
+                  <span class="bucket-status">High Risk</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Customer Search / Filter -->
             <div class="search-bar-wrap">
-              <input id="khata-search" type="text" placeholder="Search customer name or phone…">
+              <input id="khata-search" type="text" placeholder="🔍 Search customer name or phone…">
             </div>
 
             <!-- Customer Accounts List -->
@@ -197,7 +242,7 @@
                 <div class="sarkar-avatar">🤖</div>
                 <div>
                   <h2 class="sarkar-name">Sarkar AI Copilot</h2>
-                  <p class="sarkar-status">Sarvam Indian AI · Voice & Business Intel</p>
+                  <p class="sarkar-status">Sarvam-105B Indian AI · Voice & Business Intel</p>
                 </div>
               </div>
               <!-- Language Chips -->
@@ -216,6 +261,7 @@
               <button class="prompt-chip" data-q="Aaj ki recovery kitni hui?">📊 Aaj ki recovery summary?</button>
               <button class="prompt-chip" data-q="Priya Traders ka hisaab batao">📒 Priya Traders balance?</button>
               <button class="prompt-chip" data-q="Kon sa stock khatam ho raha hai?">📦 Low stock alert?</button>
+              <button class="prompt-chip" data-q="Atta 10 kg aaya hai, stock add karo">🌾 Add 10kg Atta to stock</button>
               <button class="prompt-chip" data-q="GST report nikaalo">📑 Monthly GST summary?</button>
             </div>
 
@@ -224,7 +270,7 @@
 
             <!-- Chat Input Area -->
             <div class="chat-input-bar">
-              <button id="sarkar-mic-btn" class="mic-btn" title="Voice Input">🎤</button>
+              <button id="sarkar-mic-btn" class="mic-btn" title="Voice Input (Speech to Text)">🎤</button>
               <input id="sarkar-text-input" type="text" placeholder="Poochiye (Ask Sarkar anything)…">
               <button id="sarkar-send-btn" class="send-btn" title="Send">➤</button>
             </div>
@@ -250,19 +296,19 @@
                 </div>
                 <div class="soundbox-status-bar">
                   <span class="soundbox-live-pill" id="hw-status-pill">Connected & Armed</span>
-                  <span class="hw-vol">🔊 100%</span>
+                  <button id="hw-vol-btn" class="hw-vol-toggle" title="Toggle Volume">🔊 100%</button>
                 </div>
               </div>
 
               <!-- Interactive Controls -->
               <div class="soundbox-controls">
                 <button id="play-sound-test-btn" class="btn-paytm-primary">
-                  <span>🔊 Test Soundbox Chime</span>
+                  <span>🔊 Test Soundbox Voice Chime</span>
                 </button>
                 <div class="sim-buttons-row">
                   <button class="sim-pay-btn" data-amt="200">Simulate ₹200</button>
                   <button class="sim-pay-btn" data-amt="450">Simulate ₹450</button>
-                  <button class="sim-pay-btn" data-amt="8400">Simulate ₹8,400</button>
+                  <button class="sim-pay-btn" data-amt="8400">Simulate ₹8,400 (Priya)</button>
                 </div>
               </div>
             </div>
@@ -306,7 +352,191 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL: KHATA MANUAL ENTRY ==================== -->
+  <!-- ==================== MODAL 1: PAYTM DYNAMIC UPI QR ==================== -->
+  <div id="dynamic-qr-modal" class="modal-overlay" hidden>
+    <div class="modal-card qr-card">
+      <div class="modal-header">
+        <div class="brand-row">
+          <span class="paytm-brand-logo">Paytm</span>
+          <span class="tag-qr">Dynamic UPI QR</span>
+        </div>
+        <button class="modal-close-btn" id="close-qr-modal-btn">✕</button>
+      </div>
+      <div class="qr-body">
+        <p class="qr-scan-instruction">Scan with Paytm, PhonePe, or GPay to pay</p>
+        <div class="qr-amount" id="qr-modal-amount">₹0.00</div>
+        
+        <div class="qr-frame-wrap">
+          <div class="qr-corner top-left"></div>
+          <div class="qr-corner top-right"></div>
+          <div class="qr-corner bottom-left"></div>
+          <div class="qr-corner bottom-right"></div>
+          <div class="qr-canvas-box" id="qr-code-canvas-box">
+            <!-- Dynamic SVG QR Code is injected here -->
+          </div>
+        </div>
+
+        <div class="qr-timer-row">
+          <span class="timer-dot"></span>
+          <span>Expires in <strong id="qr-timer-countdown">04:59</strong></span>
+        </div>
+
+        <div class="qr-actions">
+          <button id="simulate-qr-pay-btn" class="btn-paytm-primary w-100">
+            ⚡ Simulate Customer Payment (Demo)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: THERMAL DIGITAL RECEIPT ==================== -->
+  <div id="receipt-modal" class="modal-overlay" hidden>
+    <div class="modal-card receipt-card">
+      <div class="receipt-paper">
+        <div class="receipt-header">
+          <div class="receipt-brand">WAPAS KIRANA STORE</div>
+          <div class="receipt-sub">Autonomous Merchant OS · Kirana 4.0</div>
+          <div class="receipt-meta">
+            <span id="receipt-bill-no">BILL #W-8492</span> • <span id="receipt-time">Today 11:45 AM</span>
+          </div>
+          <div class="receipt-cust" id="receipt-cust-info">Customer: Walk-in Customer</div>
+        </div>
+        <div class="receipt-divider-dashed"></div>
+        <div class="receipt-items-list" id="receipt-items-list">
+          <!-- Items injected here -->
+        </div>
+        <div class="receipt-divider-dashed"></div>
+        <div class="receipt-totals">
+          <div class="total-line"><span>Subtotal</span><span id="receipt-subtotal">₹0.00</span></div>
+          <div class="total-line"><span>CGST (2.5%)</span><span id="receipt-cgst">₹0.00</span></div>
+          <div class="total-line"><span>SGST (2.5%)</span><span id="receipt-sgst">₹0.00</span></div>
+          <div class="total-line grand"><span>GRAND TOTAL</span><span id="receipt-grand-total">₹0.00</span></div>
+          <div class="payment-badge-row">
+            <span class="payment-method-badge" id="receipt-payment-badge">PAID VIA PAYTM UPI</span>
+          </div>
+        </div>
+        <div class="receipt-footer">
+          <p>✓ Verified by Paytm Soundbox 4G IoT</p>
+          <p>Thank you for shopping at Wapas!</p>
+        </div>
+      </div>
+      <div class="receipt-modal-actions">
+        <button id="close-receipt-btn" class="btn-text">Done</button>
+        <button id="print-receipt-btn" class="btn-outline-primary">🖨️ Print</button>
+        <button id="share-whatsapp-btn" class="btn-paytm-primary">💬 WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: HANDWRITTEN PARCHI SCANNER ==================== -->
+  <div id="parchi-modal" class="modal-overlay" hidden>
+    <div class="modal-card parchi-card">
+      <div class="modal-header">
+        <h3>📸 Handwritten Parchi Fast-Billing</h3>
+        <button class="modal-close-btn" id="close-parchi-btn">✕</button>
+      </div>
+      <div class="parchi-body">
+        <div class="viewfinder-box">
+          <div class="scanner-laser"></div>
+          <div class="parchi-preview-paper">
+            <div class="parchi-handwriting">
+              <p>1. Atta 5kg - ₹245</p>
+              <p>2. Fortune Oil 1L - ₹145</p>
+              <p>3. Maggi 2-Min Noodles - ₹14</p>
+              <p>4. Tata Salt 1kg - ₹28</p>
+            </div>
+          </div>
+          <div class="ocr-status-pill">🔍 Google ML Kit OCR: 4 Items Detected</div>
+        </div>
+        <div class="detected-items-box">
+          <h4>Detected Items Review:</h4>
+          <label class="detected-item-row"><input type="checkbox" checked value="prod_atta_5k"> <span>🌾 Aashirvaad Atta 5kg</span> <strong>₹245</strong></label>
+          <label class="detected-item-row"><input type="checkbox" checked value="prod_oil_1l"> <span>🌻 Fortune Sunflower Oil 1L</span> <strong>₹145</strong></label>
+          <label class="detected-item-row"><input type="checkbox" checked value="prod_maggi_70g"> <span>🍜 Maggi 2-Min Noodles</span> <strong>₹14</strong></label>
+          <label class="detected-item-row"><input type="checkbox" checked value="prod_salt_1k"> <span>🧂 Tata Salt 1kg</span> <strong>₹28</strong></label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancel-parchi-btn" class="btn-text">Cancel</button>
+        <button id="add-parchi-items-btn" class="btn-paytm-primary">Add 4 Items to Bill (₹432)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 4: BARCODE SCANNER ==================== -->
+  <div id="barcode-modal" class="modal-overlay" hidden>
+    <div class="modal-card barcode-card">
+      <div class="modal-header">
+        <h3>📷 Product Barcode Scanner</h3>
+        <button class="modal-close-btn" id="close-barcode-btn">✕</button>
+      </div>
+      <div class="barcode-body">
+        <div class="barcode-viewfinder">
+          <div class="laser-line"></div>
+          <div class="sample-barcode">||| | |||| | ||| |||| |</div>
+          <span class="detected-label">8901030383178 · Amul Butter 500g</span>
+        </div>
+        <div class="barcode-match-alert">
+          ✓ Matched Product: <strong>Amul Butter 500g</strong> (₹275)
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancel-barcode-btn" class="btn-text">Cancel</button>
+        <button id="add-barcode-item-btn" class="btn-paytm-primary">+ Add to Bill (₹275)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 5: CASE EVIDENCE & POLICY CHECK ==================== -->
+  <div id="evidence-modal" class="modal-overlay" hidden>
+    <div class="modal-card evidence-card">
+      <div class="modal-header">
+        <div>
+          <span class="evidence-tag">AUTONOMOUS AUDIT TRAIL</span>
+          <h3 id="evidence-case-title">Case Evidence & Policy Decision</h3>
+        </div>
+        <button class="modal-close-btn" id="close-evidence-btn">✕</button>
+      </div>
+      <div class="evidence-body" id="evidence-body-content">
+        <!-- Dynamically filled by JS -->
+      </div>
+      <div class="modal-footer">
+        <button id="dismiss-evidence-btn" class="btn-paytm-primary w-100">Close Evidence Log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 6: CUSTOMER ACCOUNT LEDGER DETAIL ==================== -->
+  <div id="customer-detail-modal" class="modal-overlay" hidden>
+    <div class="modal-card cust-detail-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="detail-cust-name">Ramesh Kumar</h3>
+          <span class="detail-cust-phone" id="detail-cust-phone">+91 98765 43220</span>
+        </div>
+        <button class="modal-close-btn" id="close-cust-detail-btn">✕</button>
+      </div>
+      <div class="cust-balance-hero">
+        <span class="bal-label">Outstanding Balance Due</span>
+        <div class="bal-val" id="detail-cust-bal">₹450</div>
+      </div>
+      <!-- Action buttons -->
+      <div class="cust-detail-actions">
+        <button id="detail-add-udhaar-btn" class="btn-danger-sm">+ Udhaar (Debit)</button>
+        <button id="detail-record-repay-btn" class="btn-success-sm">+ Repay (Got)</button>
+        <button id="detail-paylink-btn" class="btn-outline-sm">🔗 Payment Link</button>
+        <button id="detail-whatsapp-btn" class="btn-whatsapp-sm">💬 WhatsApp</button>
+      </div>
+      <!-- Ledger History -->
+      <div class="ledger-history-box">
+        <h4>Transaction History</h4>
+        <div class="history-list" id="detail-history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 7: KHATA MANUAL ENTRY ==================== -->
   <div id="khata-entry-modal" class="modal-overlay" hidden>
     <div class="modal-card">
       <div class="modal-header">
@@ -377,6 +607,6 @@
   <div id="toast-notify" class="toast-box" hidden></div>
 
   <!-- Core App Scripts -->
-  <script src="/static/app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>
