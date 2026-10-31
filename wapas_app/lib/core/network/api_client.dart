@@ -11,7 +11,7 @@ import 'api_exceptions.dart';
 class ApiClient {
   static const String _defaultUrl = String.fromEnvironment(
     'WAPAS_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'http://127.0.0.1:8000',
   );
   static const String _prefsKeyUrl = 'wapas_base_url';
   static const String _keySession = 'wapas_session';
@@ -41,7 +41,7 @@ class ApiClient {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedUrl = prefs.getString(_prefsKeyUrl);
-      if (savedUrl != null && savedUrl.isNotEmpty) {
+      if (savedUrl != null && savedUrl.isNotEmpty && !savedUrl.contains('10.0.2.2')) {
         _baseUrl = savedUrl.trim().replaceAll(RegExp(r'/+$'), '');
       } else {
         _baseUrl = _defaultUrl;
@@ -230,16 +230,16 @@ class ApiClient {
       http.Response response;
       switch (method) {
         case 'POST':
-          response = await _httpClient.post(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 25));
+          response = await _httpClient.post(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 10));
           break;
         case 'PUT':
-          response = await _httpClient.put(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 25));
+          response = await _httpClient.put(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 10));
           break;
         case 'PATCH':
-          response = await _httpClient.patch(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 25));
+          response = await _httpClient.patch(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 10));
           break;
         case 'DELETE':
-          response = await _httpClient.delete(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 25));
+          response = await _httpClient.delete(uri, headers: headers, body: encodedBody).timeout(const Duration(seconds: 10));
           break;
         default:
           throw UnsupportedError('HTTP method $method not supported');
