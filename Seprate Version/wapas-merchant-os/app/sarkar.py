@@ -240,6 +240,20 @@ def _summary(s) -> dict:
     }
 
 
+def _read_summary_tool(s) -> dict:
+    data = _summary(s)
+    sales = data.get("counter_issued_total_paise", 0) / 100
+    bills = data.get("counter_issued_count", 0)
+    paytm = data.get("paytm_verified_total_paise", 0) / 100
+    khata_credit = data.get("khata_credit_added_paise", 0) / 100
+    msg = (
+        f"📊 Today's Store Snapshot: ₹{sales:,.0f} billed across {bills} counter orders. "
+        f"Verified digital Paytm collections: ₹{paytm:,.0f}. "
+        f"Khata credit issued today: ₹{khata_credit:,.0f}."
+    )
+    return _result(msg, data)
+
+
 def _result(message: str, data: dict, status: str = "ANSWERED") -> dict:
     return ToolEnvelope(status=status, message=message, data=data).model_dump(mode="json")
 
@@ -262,7 +276,14 @@ def _read_khata_tool(s, args: EmptyInput) -> dict:
     rows = khata.list_accounts(s, merchant_id=current_merchant_id(), store_id=current_store_id(), limit=100)
     owing = [{"account_id": row["id"], "name": row["name"], "outstanding_paise": row["outstanding_paise"]}
              for row in rows if row["outstanding_paise"] > 0]
-    return _result("Outstanding balances come from the append-only Khata ledger.", {
+    total_due = sum(row["outstanding_paise"] for row in owing) / 100
+    if not owing:
+        msg = "Great news! All customer Khata accounts are fully settled with zero pending dues."
+    else:
+        top_due = sorted(owing, key=lambda x: x["outstanding_paise"], reverse=True)[:3]
+        names = [f"{r['name']} (₹{r['outstanding_paise']/100:.0f})" for r in top_due]
+        msg = f"📒 Khata Summary: {len(owing)} customers owe a total of ₹{total_due:,.0f}. Top dues: {', '.join(names)}."
+    return _result(msg, {
         "account_count": len(owing), "outstanding_total_paise": sum(row["outstanding_paise"] for row in owing),
         "accounts": owing, "provenance": "append-only Khata ledger balances",
     })
@@ -331,7 +352,13 @@ def _read_recent_bills_tool(s, args: LimitInput) -> dict:
 
 def _read_low_stock_tool(s, args: EmptyInput) -> dict:
     rows = [row for row in _products(s) if row["stock_state"] == "LOW"]
-    return _result("Items at or below their saved low-stock threshold.", {
+    if not rows:
+        msg = "All inventory items are well-stocked! No products are currently below their low-stock thresholds."
+    else:
+        names = [f"{r['name']} ({r['available']} {r.get('unit', 'units')} left)" for r in rows[:3]]
+        extra = f" and {len(rows)-3} more" if len(rows) > 3 else ""
+        msg = f"⚠️ Low Stock Alert: {len(rows)} item{'s' if len(rows) > 1 else ''} running low: {', '.join(names)}{extra}. Would you like me to prepare a restock receipt?"
+    return _result(msg, {
         "items": rows, "count": len(rows), "provenance": "saved inventory balances and thresholds",
     })
 
@@ -528,7 +555,7 @@ def _tool_specs() -> dict[str, ToolSpec]:
         ToolSpec("explain_payment_state", "1.0", PaymentEvidenceInput, ToolEnvelope, _read_pending_evidence_tool, owner,
                  permission="merchant.payment.read", **{k: v for k, v in common.items() if k != "permission"}),
         ToolSpec("inspect_business_summary", "1.0", EmptyInput, ToolEnvelope,
-                 lambda s, _args: _result("Here is today’s saved business summary.", _summary(s)), owner,
+                 lambda s, _args: _read_summary_tool(s), owner,
                  permission="merchant.summary.read", **{k: v for k, v in common.items() if k != "permission"}),
         ToolSpec("inspect_unmet_demand", "1.0", DemandInput, ToolEnvelope, _read_opportunity_tool, staff,
                  permission="merchant.opportunity.read", **{k: v for k, v in common.items() if k != "permission"}),
@@ -656,9 +683,73 @@ def ask(s, message: str) -> dict:
         query_match = re.search(r"(?:stock|inventory|catalogue|catalog)(?:\s+(?:of|for|on))?\s+(.+)$", lower)
         query = query_match.group(1).strip(" ?.!" ) if query_match else ""
         return invoke_tool(s, "inspect_stock", {"query": query})
-    return {"status": "NEEDS_CLARIFICATION", "engine": ENGINE,
-            "message": "I can search stock, list low-stock items, read Counter bills and Shop orders, inspect Khata, summarize verified Paytm payments, explain a pending payment by ID, read Opportunity Pulse, or prepare a stock receipt for owner confirmation.",
-            "tool_trace": []}
+    return _ask_sarvam_llm(s, text)
+
+
+def _ask_sarvam_llm(s, message: str) -> dict:
+    import httpx
+    cfg = get_settings()
+    try:
+        from .merchant_os_models import Product
+        from .khata_models import KhataAccount
+
+        products = s.exec(select(Product).where(Product.merchant_id == current_merchant_id())).all()
+        low_stock = [p for p in products if p.stock <= 5]
+        khata_accounts = s.exec(select(KhataAccount).where(KhataAccount.merchant_id == current_merchant_id())).all()
+        total_khata = sum(a.balance_inr for a in khata_accounts)
+        summ = _summary(s)
+        sales = summ.get("counter_issued_total_paise", 0) / 100
+        bills = summ.get("counter_issued_count", 0)
+
+        context_str = (
+            f"Store ID: {current_store_id()}\n"
+            f"Today Billed Sales: ₹{sales:.0f} across {bills} counter bills\n"
+            f"Catalog: {len(products)} products total. {len(low_stock)} low-stock products: {', '.join(f'{p.name} ({p.stock} {p.unit})' for p in low_stock[:4])}\n"
+            f"Khata Ledger: {len(khata_accounts)} customer accounts, ₹{total_khata:.0f} total pending dues\n"
+        )
+    except Exception:
+        context_str = "Live Kirana store context available."
+
+    sys_prompt = (
+        "You are Sarkar AI, an intelligent autonomous Kirana Store Copilot for Wapas Merchant OS (Paytm Build for India Hackathon). "
+        "You speak directly with the merchant in a warm, respectful, concise, and highly coherent voice. "
+        "Match the language of the merchant naturally (English, Hindi, Hinglish, Telugu, Tamil, Kannada). "
+        "Use the real numbers from the store context below whenever asked about sales, stock, dues, or shop status. "
+        "Keep responses punchy (2-4 sentences max), conversational, and actionable.\n\n"
+        f"STORE FACTS:\n{context_str}"
+    )
+
+    try:
+        api_key = cfg.sarvam_api_key or cfg.llm_api_key or "sk_tlhz0ys9_CJq36YnlAS1INRQLh8b7vGuT"
+        headers = {"api-subscription-key": api_key, "Content-Type": "application/json"}
+        payload = {
+            "model": "sarvam-105b",
+            "messages": [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": message}
+            ],
+            "max_tokens": 1024,
+            "reasoning_effort": None
+        }
+        r = httpx.post("https://api.sarvam.ai/v1/chat/completions", json=payload, headers=headers, timeout=25.0)
+        if r.status_code == 200:
+            content = r.json()["choices"][0]["message"].get("content") or ""
+            if content.strip():
+                return {
+                    "status": "ANSWERED",
+                    "engine": "SARVAM-105B_NEURAL",
+                    "message": content.strip(),
+                    "tool_trace": [{"tool": "sarvam_llm_reasoner", "version": "105b"}]
+                }
+    except Exception:
+        pass
+
+    return {
+        "status": "NEEDS_CLARIFICATION",
+        "engine": ENGINE,
+        "message": "I can search stock, list low-stock items, read Counter bills and Shop orders, inspect Khata, summarize verified Paytm payments, or prepare a stock receipt for owner confirmation.",
+        "tool_trace": []
+    }
 
 
 def confirm_action(s, action_id: str, token: str) -> dict:
