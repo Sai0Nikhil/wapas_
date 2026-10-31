@@ -139,6 +139,13 @@ flutter run
 ```
 
 ### Demo Credentials
-- **Owner Role:** `admin` / `password12345678`
+- **Owner Role:** `admin` / `password12345678` or `demo_owner` / `WapasSecure1234!`
 - **Staff Role:** `staff` / `password12345678`
 - **Demo Walkthrough Guide:** See [docs/demo-script.md](file:///home/sai-nikhil/wapas/docs/demo-script.md).
+
+### Physical Android Device Setup (over USB)
+If running on a physical Android phone via USB debugging:
+```bash
+adb reverse tcp:8000 tcp:8000
+```
+This routes `http://127.0.0.1:8000` from the mobile device to the host workstation's Uvicorn backend server.

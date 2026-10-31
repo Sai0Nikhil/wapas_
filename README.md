@@ -26,17 +26,23 @@ Wapas is an autonomous Merchant Operating System built for Indian Kirana stores.
 - Swagger Docs: `http://localhost:8000/docs`
 - Ready Probe: `http://localhost:8000/healthz`
 - Demo Credentials:
-  - **Owner:** `admin` / `password12345678`
+  - **Owner:** `admin` / `password12345678` or `demo_owner` / `WapasSecure1234!`
   - **Staff:** `staff` / `password12345678`
 
-### 2. Launch Mobile App
+### 2. Physical Device Connection (over USB)
+If running on a connected physical phone:
+```bash
+adb reverse tcp:8000 tcp:8000
+```
+
+### 3. Launch Mobile App
 ```bash
 cd wapas_app
 flutter pub get
 flutter run
 ```
 
-### 3. Run Tests
+### 4. Run Tests
 ```bash
 cd wapas_app
 flutter analyze   # 0 issues
