@@ -1,20 +1,43 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import '../theme/app_theme.dart';
-import '../services/api_service.dart';
 
-class SarkarCopilotScreen extends StatefulWidget {
+import '../models/sarkar_models.dart';
+import '../providers/app_providers.dart';
+import '../theme/app_theme.dart';
+
+class SarkarChatMessage {
+  final bool isUser;
+  final String text;
+  final DateTime timestamp;
+  final SarkarAskResponse? response;
+  bool isActionConfirmed;
+  bool isActionCancelled;
+  bool isConfirming;
+
+  SarkarChatMessage({
+    required this.isUser,
+    required this.text,
+    required this.timestamp,
+    this.response,
+    this.isActionConfirmed = false,
+    this.isActionCancelled = false,
+    this.isConfirming = false,
+  });
+}
+
+class SarkarCopilotScreen extends ConsumerStatefulWidget {
   const SarkarCopilotScreen({super.key});
 
   @override
-  State<SarkarCopilotScreen> createState() => _SarkarCopilotScreenState();
+  ConsumerState<SarkarCopilotScreen> createState() => _SarkarCopilotScreenState();
 }
 
-class _SarkarCopilotScreenState extends State<SarkarCopilotScreen> {
+class _SarkarCopilotScreenState extends ConsumerState<SarkarCopilotScreen> {
   final TextEditingController _msgCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
 
-  // Language management - English by default!
   String _selectedLang = "en"; // "en", "hi_en", "te", "kn", "ta", "hi"
 
   final Map<String, String> _languages = {
@@ -26,23 +49,29 @@ class _SarkarCopilotScreenState extends State<SarkarCopilotScreen> {
     "hi": "हिंदी (Hindi)",
   };
 
-  // Speech to text
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   bool _speechAvailable = false;
   String _voiceBuffer = "";
-
   bool _isLoading = false;
 
-  late List<Map<String, dynamic>> _messages;
+  late List<SarkarChatMessage> _messages;
 
   @override
   void initState() {
     super.initState();
     _initSpeech();
     _messages = [
-      _buildWelcomeMessage("en"),
+      _buildInitialWelcome("en"),
     ];
+  }
+
+  @override
+  void dispose() {
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
+    _speech.stop();
+    super.dispose();
   }
 
   Future<void> _initSpeech() async {
@@ -66,52 +95,41 @@ class _SarkarCopilotScreenState extends State<SarkarCopilotScreen> {
     }
   }
 
-  Map<String, dynamic> _buildWelcomeMessage(String lang) {
+  SarkarChatMessage _buildInitialWelcome(String lang) {
     String greeting;
-    List<String> chips;
-
     switch (lang) {
       case "te":
         greeting = "నమస్తే! Wapas కోపైలట్‌కి స్వాగతం. మీ స్టోర్ సేల్స్, ఇన్వెంటరీ లేదా ఖాతా గురించి ఏదైనా అడగండి.";
-        chips = ["ఈరోజు అమ్మకాలు", "ఎవరి దగ్గర బాకీ ఉంది?", "స్టాక్ వివరాలు", "సౌండ్‌బాక్స్ స్థితి"];
         break;
       case "kn":
         greeting = "ನಮಸ್ಕಾರ! Wapas ಕೋಪೈಲಟ್‌ಗೆ ಸ್ವಾಗತ. ನಿಮ್ಮ ಅಂಗಡಿಯ ಮಾರಾಟ, ಖಾತಾ ಬಾಕಿ ಅಥವಾ ಸ್ಟಾಕ್ ಬಗ್ಗೆ ಕೇಳಿ.";
-        chips = ["ಇಂದಿನ ಮಾರಾಟ", "ಖಾತಾ ಬಾಕಿ ಯಾರಿಗಿದೆ?", "ಸ್ಟಾಕ್ ಎಚ್ಚರಿಕೆ", "ಸೌಂಡ್‌ಬಾಕ್ಸ್ ಸ್ಥಿತಿ"];
         break;
       case "hi_en":
         greeting = "Namaste! Main Wapas Retail Copilot hoon. Store turnover, stock ya Khata se judi koi bhi jaankari poochiye.";
-        chips = ["Aaj ka turnover?", "Kisne udhaar nahi diya?", "Stock check", "Recovered payments"];
         break;
       case "ta":
         greeting = "வணக்கம்! Wapas கோபிலட்டுக்கு வரவேற்கிறோம். உங்கள் கடை விற்பனை அல்லது கடன் கணக்கு பற்றி கேளுங்கள்.";
-        chips = ["இன்றைய விற்பனை", "கடன் பாக்கி யார்?", "இருப்பு விவரம்", "மீட்டெடுக்கப்பட்டவை"];
         break;
       case "hi":
         greeting = "नमस्ते! Wapas कोपायलट में आपका स्वागत है। आज दुकान के हिसाब, स्टॉक या खाते के बारे में पूछिए।";
-        chips = ["आज की बिक्री?", "किसका उधार बाकी है?", "स्टॉक रिपोर्ट", "साउंडबॉक्स स्थिति"];
         break;
-      default: // en
-        greeting = "Namaste! Welcome to Wapas Copilot. Ask about store turnover, low stock, or pending Khata dues.";
-        chips = ["Today's sales", "Who owes Khata?", "Low stock alert", "Soundbox status"];
+      default:
+        greeting = "Namaste! Welcome to Wapas Copilot. Ask about daily sales, low stock alerts, pending Khata dues, or restock receipts.";
         break;
     }
 
-    return {
-      "isUser": false,
-      "text": greeting,
-      "time": "Just now",
-      "headline_stat": null,
-      "source": "Wapas Retail Assistant",
-      "suggestions": chips,
-    };
+    return SarkarChatMessage(
+      isUser: false,
+      text: greeting,
+      timestamp: DateTime.now(),
+    );
   }
 
   void _onLanguageChanged(String newLang) {
     if (newLang == _selectedLang) return;
     setState(() {
       _selectedLang = newLang;
-      _messages.add(_buildWelcomeMessage(newLang));
+      _messages.add(_buildInitialWelcome(newLang));
     });
     _scrollToBottom();
   }
@@ -151,7 +169,7 @@ class _SarkarCopilotScreenState extends State<SarkarCopilotScreen> {
 
       try {
         await _speech.listen(
-          localeId: localeId,
+          listenOptions: stt.SpeechListenOptions(localeId: localeId),
           onResult: (result) {
             setState(() {
               _voiceBuffer = result.recognizedWords;
@@ -176,52 +194,76 @@ class _SarkarCopilotScreenState extends State<SarkarCopilotScreen> {
     _msgCtrl.clear();
 
     setState(() {
-      _messages.add({
-        "isUser": true,
-        "text": userQuery,
-        "time": "Just now",
-      });
+      _messages.add(SarkarChatMessage(
+        isUser: true,
+        text: userQuery,
+        timestamp: DateTime.now(),
+      ));
       _isLoading = true;
     });
     _scrollToBottom();
 
-    // Call live Sarvam backend
+    // POST /api/merchant/sarkar/ask
+    final sarkarRepo = ref.read(sarkarRepoProvider);
     try {
-      final res = await ApiService.chatWithCopilot(userQuery, _selectedLang);
-      final reply = res["reply"]?.toString() ?? "Here is the information from your store.";
-      final headline = res["headline_stat"]?.toString();
-      final source = res["source"]?.toString() ?? "Sarvam-105B AI";
-      final suggestions = (res["suggestions"] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-
+      final res = await sarkarRepo.ask(userQuery);
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _messages.add({
-            "isUser": false,
-            "text": reply,
-            "time": "Just now",
-            "headline_stat": headline,
-            "source": source,
-            "suggestions": suggestions,
-          });
+          _messages.add(SarkarChatMessage(
+            isUser: false,
+            text: res.message,
+            timestamp: DateTime.now(),
+            response: res,
+          ));
         });
         _scrollToBottom();
       }
     } catch (e) {
-      debugPrint("Copilot error: $e, using local fallback");
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _messages.add({
-            "isUser": false,
-            "text": "Today's sales stand at ₹14,240 across 32 counter bills. Autonomous recovery is active on Paytm Soundbox.",
-            "time": "Just now",
-            "headline_stat": "₹14,240 Today's Sales",
-            "source": "Local Store Engine",
-            "suggestions": ["Who owes Khata?", "Check low stock", "Soundbox status"],
-          });
+          _messages.add(SarkarChatMessage(
+            isUser: false,
+            text: "Request failed: ${e.toString()}",
+            timestamp: DateTime.now(),
+          ));
         });
         _scrollToBottom();
+      }
+    }
+  }
+
+  Future<void> _confirmAction(SarkarChatMessage msg) async {
+    final conf = msg.response?.confirmation;
+    if (conf == null) return;
+
+    setState(() => msg.isConfirming = true);
+    final sarkarRepo = ref.read(sarkarRepoProvider);
+
+    try {
+      await sarkarRepo.confirmAction(conf.actionId, conf.token);
+      if (mounted) {
+        setState(() {
+          msg.isConfirming = false;
+          msg.isActionConfirmed = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Action confirmed and executed successfully"),
+            backgroundColor: AppColors.tertiary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => msg.isConfirming = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Confirmation failed: $e"),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
   }
@@ -238,38 +280,42 @@ class _SarkarCopilotScreenState extends State<SarkarCopilotScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.secondaryContainer.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+                color: AppColors.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.psychology, color: AppColors.secondary, size: 20),
+              child: const Icon(Icons.psychology, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 8),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Sarkar AI Copilot", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                  Text("Retail Intelligence • Sarvam 105B", style: TextStyle(fontSize: 11, color: AppColors.outline)),
-                ],
-              ),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Sarkar AI Copilot",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  "Deterministic Typed Router • Sarvam Indic",
+                  style: TextStyle(fontSize: 10, color: AppColors.outline),
+                ),
+              ],
             ),
           ],
         ),
         actions: [
-          // Language selector dropdown
+          // Language selector
           Container(
-            margin: const EdgeInsets.only(right: 12),
+            margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+              color: AppColors.surfaceLow,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedLang,
-                icon: const Icon(Icons.language, size: 16, color: AppColors.secondary),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.secondary),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
                 onChanged: (val) {
                   if (val != null) _onLanguageChanged(val);
                 },
@@ -286,252 +332,367 @@ class _SarkarCopilotScreenState extends State<SarkarCopilotScreen> {
       ),
       body: Column(
         children: [
-          // Voice listening active banner
-          if (_isListening)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: const Color(0xFF673AB7),
-              child: Row(
-                children: [
-                  const Icon(Icons.mic, color: Colors.white, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _voiceBuffer.isEmpty ? "Listening... Speak now" : "\"$_voiceBuffer\"",
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  InkWell(
-                    onTap: _toggleVoiceListening,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text("STOP", style: TextStyle(color: Color(0xFF673AB7), fontWeight: FontWeight.bold, fontSize: 11)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // Suggestions Bar
+          _buildQuickSuggestionsBar(),
 
-          // Messages List
+          // Chat Messages List
           Expanded(
             child: ListView.builder(
               controller: _scrollCtrl,
               padding: const EdgeInsets.all(16),
               itemCount: _messages.length,
-              itemBuilder: (ctx, idx) {
-                final m = _messages[idx];
-                final isUser = m["isUser"] as bool;
-
-                return Column(
-                  crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(16),
-                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
-                      decoration: BoxDecoration(
-                        color: isUser ? AppColors.secondary : AppColors.surfaceLowest,
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(18),
-                          topRight: const Radius.circular(18),
-                          bottomLeft: Radius.circular(isUser ? 18 : 4),
-                          bottomRight: Radius.circular(isUser ? 4 : 18),
-                        ),
-                        border: isUser ? null : Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Headline stat if available
-                          if (!isUser && m["headline_stat"] != null)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE8F5E9),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                m["headline_stat"],
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2E7D32),
-                                ),
-                              ),
-                            ),
-
-                          // Text body (16sp as advised by Claude)
-                          Text(
-                            m["text"],
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: isUser ? Colors.white : AppColors.onSurface,
-                              height: 1.45,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-
-                          // Footer with timestamp & source
-                          Row(
-                            mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.spaceBetween,
-                            children: [
-                              if (!isUser && m["source"] != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceContainer,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    m["source"],
-                                    style: const TextStyle(fontSize: 10, color: AppColors.secondary, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              Text(
-                                m["time"],
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isUser ? Colors.white70 : AppColors.outline,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Suggested query chips
-                    if (!isUser && m["suggestions"] != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 12),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: (m["suggestions"] as List<dynamic>).map((sugg) {
-                            return ActionChip(
-                              label: Text(
-                                sugg.toString(),
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondary),
-                              ),
-                              backgroundColor: AppColors.surfaceLowest,
-                              side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.3)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              onPressed: () => _handleSend(sugg.toString()),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                  ],
-                );
+              itemBuilder: (context, idx) {
+                return _buildMessageBubble(_messages[idx]);
               },
             ),
           ),
 
-          // Thinking / loading indicator
           if (_isLoading)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLowest,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondary)),
-                    SizedBox(width: 8),
-                    Text("Sarvam 105B thinking...", style: TextStyle(fontSize: 12, color: AppColors.outline)),
-                  ],
-                ),
-              ),
-            ),
-
-          // Bottom Query Input
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            color: AppColors.surfaceLowest,
-            child: SafeArea(
-              child: Row(
+              child: const Row(
                 children: [
-                  // Prominent Mic Button
-                  InkWell(
-                    onTap: _toggleVoiceListening,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: _isListening ? Colors.red : AppColors.secondaryContainer.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _isListening ? Icons.stop : Icons.mic,
-                        color: _isListening ? Colors.white : AppColors.secondary,
-                        size: 26,
-                      ),
-                    ),
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondary),
                   ),
-                  const SizedBox(width: 8),
-
-                  Expanded(
-                    child: Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceLow,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: TextField(
-                        controller: _msgCtrl,
-                        onSubmitted: _handleSend,
-                        style: const TextStyle(fontSize: 15),
-                        decoration: InputDecoration(
-                          hintText: "Ask in ${_languages[_selectedLang]}...",
-                          hintStyle: const TextStyle(fontSize: 14, color: AppColors.outline),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Send button
-                  InkWell(
-                    onTap: () => _handleSend(_msgCtrl.text),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: const BoxDecoration(
-                        color: AppColors.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.send, color: Colors.white, size: 20),
-                    ),
-                  ),
+                  SizedBox(width: 8),
+                  Text("Sarkar router thinking...", style: TextStyle(fontSize: 12, color: AppColors.outline)),
                 ],
               ),
             ),
+
+          // Voice / Text Input Box
+          _buildInputBox(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickSuggestionsBar() {
+    final chips = [
+      "Summary today",
+      "Who owes Khata?",
+      "Low stock items",
+      "We received 10 kg of Atta",
+      "Inspect unmet demand",
+    ];
+
+    return Container(
+      height: 42,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: chips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (ctx, i) {
+          return ActionChip(
+            label: Text(chips[i], style: const TextStyle(fontSize: 11, color: AppColors.onSurface)),
+            backgroundColor: AppColors.surfaceLowest,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+            ),
+            onPressed: () => _handleSend(chips[i]),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(SarkarChatMessage msg) {
+    if (msg.isUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12, left: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(16).copyWith(bottomRight: Radius.zero),
+          ),
+          child: Text(
+            msg.text,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+        ),
+      );
+    }
+
+    final res = msg.response;
+    final traces = res?.toolTrace ?? [];
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16, right: 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Provider / Engine Trace Chip
+            if (res != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLow,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.bolt, size: 12, color: AppColors.secondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      traces.isNotEmpty
+                          ? "TOOL: ${traces.first.tool} (v${traces.first.version}) • ${res.engine}"
+                          : "ROUTER: ${res.engine}",
+                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                    ),
+                    if (res.input?.latencyMs != null && res.input!.latencyMs > 0)
+                      Text(" • ${res.input!.latencyMs}ms", style: const TextStyle(fontSize: 9, color: AppColors.outline)),
+                  ],
+                ),
+              ),
+            ],
+
+            // Message Body Container
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLowest,
+                borderRadius: BorderRadius.circular(16).copyWith(topLeft: Radius.zero),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    msg.text,
+                    style: const TextStyle(fontSize: 14, color: AppColors.onSurface, height: 1.4),
+                  ),
+
+                  // Structured Data Preview if available
+                  if (res?.data != null && res!.data!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _buildStructuredDataView(res.data!),
+                  ],
+
+                  // Confirmation Card for Mutating Actions
+                  if (res != null && res.needsConfirmation && !msg.isActionConfirmed && !msg.isActionCancelled) ...[
+                    const SizedBox(height: 12),
+                    _buildConfirmationCard(msg),
+                  ],
+
+                  if (msg.isActionConfirmed) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.check_circle, size: 16, color: Colors.green),
+                          SizedBox(width: 6),
+                          Text("Action Confirmed and Executed in Ledger/Stock",
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  if (msg.isActionCancelled) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.cancel, size: 16, color: Colors.grey),
+                          SizedBox(width: 6),
+                          Text("Action Cancelled by Owner",
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStructuredDataView(Map<String, dynamic> data) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLow,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: data.entries.take(4).map((e) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${e.key}: ", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                Expanded(
+                  child: Text("${e.value}", style: const TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildConfirmationCard(SarkarChatMessage msg) {
+    final conf = msg.response!.confirmation!;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF9E6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFFFCC00), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFF996600), size: 18),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  "Owner Confirmation Required",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF996600)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(conf.summary, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: msg.isConfirming ? null : () => setState(() => msg.isActionCancelled = true),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    side: const BorderSide(color: Colors.grey),
+                  ),
+                  child: const Text("Cancel", style: TextStyle(color: Colors.black87, fontSize: 11)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: msg.isConfirming ? null : () => _confirmAction(msg),
+                  style: ElevatedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: msg.isConfirming
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text("Confirm Action", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInputBox() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLowest,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            // Microphone Button
+            Container(
+              decoration: BoxDecoration(
+                color: _isListening ? Colors.red.shade50 : AppColors.surfaceLow,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: Icon(
+                  _isListening ? Icons.mic : Icons.mic_none,
+                  color: _isListening ? Colors.red : AppColors.secondary,
+                ),
+                onPressed: _toggleVoiceListening,
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Input field
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLow,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: TextField(
+                  controller: _msgCtrl,
+                  decoration: InputDecoration(
+                    hintText: _isListening ? "Listening in ${_languages[_selectedLang]}..." : "Ask Sarkar in ${_languages[_selectedLang]}...",
+                    border: InputBorder.none,
+                    hintStyle: const TextStyle(fontSize: 13, color: AppColors.outline),
+                  ),
+                  onSubmitted: (val) => _handleSend(val),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Send Button
+            CircleAvatar(
+              backgroundColor: AppColors.primary,
+              radius: 20,
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.white, size: 16),
+                onPressed: () => _handleSend(_msgCtrl.text),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
