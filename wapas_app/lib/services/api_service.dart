@@ -81,4 +81,35 @@ class ApiService {
     }
     return [];
   }
+
+  /// Call live Sarvam-105B backend for conversational retail Copilot
+  static Future<Map<String, dynamic>> chatWithCopilot(
+    String message,
+    String language,
+  ) async {
+    final url = await getActiveBaseUrl();
+    final endpoint = Uri.parse("$url/copilot/chat");
+
+    final payload = {
+      "message": message,
+      "language": language,
+    };
+
+    try {
+      final response = await http.post(
+        endpoint,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 25));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception("Server returned ${response.statusCode}: ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("API call to Copilot failed: $e");
+      rethrow;
+    }
+  }
 }

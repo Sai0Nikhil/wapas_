@@ -97,6 +97,19 @@ class StoreState extends ChangeNotifier {
     for (var item in inventory) {
       item.quantityInCart = 0;
     }
+  }
+
+  void addInventoryProduct(String name, double price, {String weight = "1 pc", String category = "General"}) {
+    final newItem = ProductItem(
+      id: "${inventory.length + 1}",
+      name: name,
+      weight: weight,
+      price: price,
+      stock: 50,
+      category: category,
+      quantityInCart: 1, // add straight to cart!
+    );
+    inventory.insert(0, newItem);
     notifyListeners();
   }
 

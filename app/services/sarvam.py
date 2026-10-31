@@ -211,3 +211,153 @@ Respond ONLY with valid JSON:
     }
 
 
+async def chat_with_copilot(query: str, language: str = "en", store_context: dict | None = None) -> dict:
+    """Conversational retail copilot for kirana merchants powered by Sarvam-105B.
+    Answers in requested language (English, Telugu, Kannada, Hinglish, Tamil, Hindi).
+    """
+    s = get_settings()
+    ctx = store_context or {}
+    sales_today = ctx.get("sales_today", "₹14,240 (32 bills)")
+    recovered_today = ctx.get("recovered_today", "₹3,840 (5 automated Paytm recoveries)")
+    khata_due = ctx.get("khata_due", "₹10,420 (Anand Medicals: ₹5,800 overdue, Rao Garu: ₹2,400)")
+    low_stock = ctx.get("low_stock", "Amul Butter 500g (18 units), Tata Salt (12 units)")
+    soundbox = ctx.get("soundbox_status", "Paytm Soundbox 4G Active • 98% battery")
+
+    lang_labels = {
+        "en": "English",
+        "te": "Telugu (తెలుగు)",
+        "kn": "Kannada (ಕನ್ನಡ)",
+        "hi_en": "Hinglish (conversational Hindi-English blend)",
+        "ta": "Tamil (தமிழ்)",
+        "hi": "Hindi (हिंदी)",
+    }
+    target_lang = lang_labels.get(language, "English")
+
+    if s.sarvam_api_key:
+        try:
+            prompt = f"""You are Sarkar AI Copilot, an autonomous retail intelligence teammate for Indian Kirana merchants in Wapas.
+The merchant speaks {target_lang}. Answer the merchant's query in {target_lang}.
+Formatting guidelines:
+1. Be concise, respectful, and direct (2-3 sentences max). Kirana owners are fast-paced.
+2. If citing numbers, use ₹ and clear bold metrics.
+3. Provide 2-3 short follow-up suggestion chips in {target_lang}.
+
+Live Kirana Store Facts:
+- Sales Today: {sales_today}
+- Recovered via Autonomous Wapas: {recovered_today}
+- Khata Ledger Dues: {khata_due}
+- Low Stock Items: {low_stock}
+- Soundbox Status: {soundbox}
+
+Merchant Question: "{query}"
+
+Respond ONLY with valid JSON:
+{{
+  "reply": "concise answer in {target_lang}",
+  "headline_stat": "₹14,240 Total Sales (or relevant key stat)",
+  "suggestions": ["short suggestion 1", "short suggestion 2", "short suggestion 3"],
+  "source": "Sarvam-105B AI"
+}}"""
+
+            headers = {"api-subscription-key": s.sarvam_api_key, "Content-Type": "application/json"}
+            payload = {
+                "model": s.sarvam_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.2,
+            }
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                res = await client.post(f"{s.sarvam_base_url}/v1/chat/completions", headers=headers, json=payload)
+                if res.status_code == 200:
+                    raw_content = res.json()["choices"][0]["message"]["content"]
+                    parsed = _extract_json(raw_content)
+                    parsed["source"] = "Sarvam-105B AI"
+                    return parsed
+        except Exception as exc:
+            logger.warning(f"Sarvam Copilot call failed, falling back to deterministic response: {repr(exc)}")
+
+    # Deterministic fallback tailored to language & query
+    q = query.lower()
+    if "sale" in q or "turnover" in q or "aaj" in q or "bikri" in q or "అమ్మకాలు" in q or "ಮಾರಾಟ" in q:
+        if language == "te":
+            return {
+                "reply": f"ఈరోజు Sharma Kirana మొత్తం అమ్మకాలు {sales_today}. అటానమస్ Wapas ద్వారా {recovered_today} రికవరీ అయ్యాయి.",
+                "headline_stat": "₹14,240 నేటి అమ్మకాలు",
+                "suggestions": ["బాకీ ఎవరున్నారు?", "స్టాక్ రిపోర్ట్", "సౌండ్‌బాక్స్ స్థితి"],
+                "source": "Sarvam Local Engine",
+            }
+        elif language == "kn":
+            return {
+                "reply": f"ಇಂದು Sharma Kirana ಅಂಗಡಿಯ ಒಟ್ಟು ಮಾರಾಟ {sales_today}. Wapas ಮೂಲಕ {recovered_today} ರಿಕವರಿ ಆಗಿದೆ.",
+                "headline_stat": "₹14,240 ಇಂದಿನ ಮಾರಾಟ",
+                "suggestions": ["ಖಾತಾ ಬಾಕಿ ಯಾರಿಗಿದೆ?", "ಸ್ಟಾಕ್ ಎಚ್ಚರಿಕೆ", "ಸೌಂಡ್‌ಬಾಕ್ಸ್ ಸ್ಥಿತಿ"],
+                "source": "Sarvam Local Engine",
+            }
+        elif language == "hi_en":
+            return {
+                "reply": f"Aaj store ka total turnover {sales_today} hai. Wapas AI ne {recovered_today} recover kiya hai.",
+                "headline_stat": "₹14,240 Today's Sales",
+                "suggestions": ["Khata kisne nahi diya?", "Low stock alert", "Soundbox status"],
+                "source": "Sarvam Local Engine",
+            }
+        elif language == "hi":
+            return {
+                "reply": f"आज दुकान की कुल बिक्री {sales_today} रही। Wapas ने {recovered_today} सफलतापूर्वक रिकवर किए।",
+                "headline_stat": "₹14,240 आज की बिक्री",
+                "suggestions": ["किसका उधार बाकी है?", "स्टॉक अलर्ट", "साउंडबॉक्स स्थिति"],
+                "source": "Sarvam Local Engine",
+            }
+        else: # en
+            return {
+                "reply": f"Today's total sales stand at {sales_today}. Wapas has autonomously recovered {recovered_today}.",
+                "headline_stat": "₹14,240 Today's Sales",
+                "suggestions": ["Who owes Khata?", "Low stock items", "Soundbox status"],
+                "source": "Sarvam Local Engine",
+            }
+
+    if "khata" in q or "udhaar" in q or "due" in q or "owe" in q or "బాకీ" in q or "ಖಾತಾ" in q:
+        if language == "te":
+            return {
+                "reply": f"మీ ఖాతా లెడ్జర్‌లో మొత్తం {khata_due} బాకీ ఉంది. ఆనంద్ మెడికల్స్ బిల్లు చాలా రోజులుగా పెండింగ్‌లో ఉంది.",
+                "headline_stat": "₹10,420 మొత్తం బాకీ",
+                "suggestions": ["WhatsApp పేమెంట్ లింక్ పంపు", "ఈరోజు అమ్మకాలు", "స్టాక్ రిపోర్ట్"],
+                "source": "Sarvam Local Engine",
+            }
+        elif language == "kn":
+            return {
+                "reply": f"ನಿಮ್ಮ ಖಾತಾ ಲೆಡ್ಜರ್‌ನಲ್ಲಿ ಒಟ್ಟು {khata_due} ಬಾಕಿ ಇದೆ. Anand Medicals ಅವರ ₹5,800 ಓವರ್‌ಡ್ಯೂ ಆಗಿದೆ.",
+                "headline_stat": "₹10,420 ಒಟ್ಟು ಬಾಕಿ",
+                "suggestions": ["ಪಾವತಿ ಲಿಂಕ್ ಕಳುಹಿಸಿ", "ಇಂದಿನ ಮಾರಾಟ", "ಸ್ಟಾಕ್ ಪಟ್ಟಿ"],
+                "source": "Sarvam Local Engine",
+            }
+        elif language == "hi_en":
+            return {
+                "reply": f"Aapke Khata ledger mein {khata_due} pending hai. Anand Medicals ka ₹5,800 overdue hai.",
+                "headline_stat": "₹10,420 Total Khata Due",
+                "suggestions": ["Send payment links", "Today's sales", "Check low stock"],
+                "source": "Sarvam Local Engine",
+            }
+        elif language == "hi":
+            return {
+                "reply": f"आपके खाता लेज़र में कुल {khata_due} बाकी है। आनंद मेडिकल्स का ₹5,800 ओवरड्यू है।",
+                "headline_stat": "₹10,420 कुल उधार",
+                "suggestions": ["पेमेंट लिंक भेजें", "आज की बिक्री", "स्टॉक चेक करें"],
+                "source": "Sarvam Local Engine",
+            }
+        else:
+            return {
+                "reply": f"Total outstanding Khata dues stand at {khata_due}. Anand Medicals has ₹5,800 overdue.",
+                "headline_stat": "₹10,420 Outstanding Dues",
+                "suggestions": ["Send recovery links", "Today's sales", "Stock report"],
+                "source": "Sarvam Local Engine",
+            }
+
+    # Default general response
+    return {
+        "reply": f"I've recorded your query: \"{query}\". Sharma Kirana systems are synced with Paytm Soundbox and Khata Ledger.",
+        "headline_stat": "Store Active & Synced",
+        "suggestions": ["Today's sales", "Who owes Khata?", "Low stock alert"],
+        "source": "Sarvam Local Engine",
+    }
+
+
+
