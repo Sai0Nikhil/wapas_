@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
 import 'screens/splash_screen.dart';
 import 'screens/pos_billing_screen.dart';
@@ -8,7 +9,7 @@ import 'screens/sarkar_copilot_screen.dart';
 import 'screens/soundbox_feed_screen.dart';
 
 void main() {
-  runApp(const WapasMerchantApp());
+  runApp(const ProviderScope(child: WapasMerchantApp()));
 }
 
 class WapasMerchantApp extends StatelessWidget {
@@ -55,7 +56,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           color: AppColors.surfaceLowest,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
