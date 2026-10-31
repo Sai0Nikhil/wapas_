@@ -38,6 +38,9 @@ dependencies:
   intl: ^0.20.3
   http: ^1.6.0
   shared_preferences: ^2.5.6
+  image_picker: ^1.2.4
+  google_mlkit_text_recognition: ^0.17.1
+  speech_to_text: ^7.5.0
 
 dev_dependencies:
   flutter_test:
