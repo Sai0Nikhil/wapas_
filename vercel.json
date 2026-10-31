@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/login",
-      "destination": "/web_portal/login.html"
+      "destination": "/web_portal/index.html"
     },
     {
       "source": "/shop",

@@ -2,63 +2,381 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="referrer" content="same-origin">
-  <title>Sign in · Wapas</title>
-  <style>
-    :root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#101828;background:#f7f6f2}
-    *{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:18px}
-    main{width:min(100%,420px);background:white;border:1px solid #dedbd3;border-radius:18px;padding:28px;box-shadow:0 14px 40px #10182812}
-    h1{margin:0 0 5px;font-size:26px}.brand{font-weight:800;letter-spacing:.02em;color:#1746c8}
-    p{color:#596273;line-height:1.45}.form{display:grid;gap:14px;margin-top:22px}
-    label{display:grid;gap:6px;font-size:13px;font-weight:650}input,select{font:inherit;padding:11px 12px;border:1px solid #c9ccd3;border-radius:9px;background:white;color:inherit}
-    input:focus,select:focus,button:focus-visible{outline:3px solid #bfd0ff;outline-offset:1px}
-    button{font:inherit;font-weight:700;border:0;border-radius:9px;background:#1746c8;color:white;padding:12px;cursor:pointer}
-    button:disabled{opacity:.6;cursor:wait}.error{min-height:20px;color:#a33228;font-size:13px;margin:0}.status{min-height:20px;font-size:13px;margin:0}
-    .help{font-size:12px;margin-top:18px}
-    .mode-switch{display:flex;gap:6px;margin:18px 0 14px;background:#edeae1;padding:4px;border-radius:10px}
-    .tab-btn{flex:1;border:0;background:transparent;color:#596273;font:inherit;font-size:13px;font-weight:600;padding:8px;border-radius:7px;cursor:pointer}
-    .tab-btn.active{background:white;color:#101828;box-shadow:0 1px 3px #10182810}
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Wapas · Autonomous Kirana OS & Recovery Tower</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
-  <main>
-    <div class="brand">Wapas</div>
-    <div class="mode-switch">
-      <button type="button" id="tab-login" class="tab-btn active">Sign in</button>
-      <button type="button" id="tab-register" class="tab-btn">Register store</button>
-    </div>
-    <div id="login-section">
-      <h1>Sign in to your store</h1>
-      <p>Use your merchant account to open the owner console.</p>
-      <form id="login-form" class="form" autocomplete="on">
-        <label for="username">Username<input id="username" name="username" autocomplete="username" required maxlength="120"></label>
-        <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
-        <div id="workspace-choice" hidden>
-          <label for="membership">Merchant and store<select id="membership" name="membership_id"></select></label>
+<body class="mobile-frame-mode">
+  <div class="view-wrapper">
+    <!-- Top Global Switcher for Judges (Laptop/Phone Preview Toggle) -->
+    <header class="judge-toolbar">
+      <div class="brand-chip">
+        <span class="paytm-badge">Paytm Hackathon</span>
+        <span class="track-tag">Track 3: Autonomous AI Teammates</span>
+      </div>
+      <div class="mode-toggles">
+        <button id="toggle-view-btn" class="toggle-btn" title="Toggle Mobile / Fullscreen Dashboard">
+          <span class="icon">📱</span>
+          <span class="btn-text">Phone View</span>
+        </button>
+        <span class="store-status-pill">
+          <span class="live-dot"></span> Wapas Kirana · Live
+        </span>
+      </div>
+    </header>
+
+    <!-- Main Mobile/Tablet Device Container -->
+    <div class="app-device-shell">
+      <!-- Phone Header Bar -->
+      <header class="app-header">
+        <div class="header-left">
+          <div class="store-avatar">W</div>
+          <div class="store-meta">
+            <h1 class="store-title">Wapas Kirana Store</h1>
+            <p class="store-sub"><span class="pulse-dot"></span> Soundbox 4G · Online</p>
+          </div>
         </div>
-        <button id="submit" type="submit">Sign in</button>
-        <p id="message" class="error" role="alert" aria-live="polite"></p>
-        <p id="status" class="status" aria-live="polite"></p>
-      </form>
-      <p class="help">If your account has no active store membership, ask the merchant owner to provision it.</p>
+        <div class="header-right">
+          <button id="demo-reset-btn" class="header-icon-btn" title="Reset Demo Data">🔄</button>
+          <div class="role-pill">OWNER</div>
+        </div>
+      </header>
+
+      <!-- App Screen Content (5 Modules) -->
+      <main class="app-viewport">
+        <!-- ==================== TAB 1: POS BILLING ==================== -->
+        <section id="pane-billing" class="tab-pane active">
+          <div class="pane-content">
+            <div class="quick-banner">
+              <div class="banner-text">
+                <strong>Counter Billing</strong>
+                <span>Tap items to add · Instant Soundbox payment</span>
+              </div>
+              <button id="quick-parchi-btn" class="btn-secondary-sm">📸 Scan Parchi</button>
+            </div>
+
+            <!-- Customer Phone Input -->
+            <div class="input-card">
+              <label for="bill-customer-phone">Customer Phone (Optional for Khata / Receipt)</label>
+              <div class="phone-input-row">
+                <span class="prefix">+91</span>
+                <input id="bill-customer-phone" type="tel" placeholder="98765 43220 (Ramesh)" maxlength="10">
+                <button id="quick-cust-btn" class="chip-btn">Ramesh</button>
+              </div>
+            </div>
+
+            <!-- Category Chips -->
+            <div class="category-scroll">
+              <button class="cat-chip active" data-cat="all">All Items</button>
+              <button class="cat-chip" data-cat="staples">Atta & Rice</button>
+              <button class="cat-chip" data-cat="oils">Oils & Ghee</button>
+              <button class="cat-chip" data-cat="snacks">Biscuits & Snacks</button>
+              <button class="cat-chip" data-cat="dairy">Dairy & Spices</button>
+            </div>
+
+            <!-- Catalog Items Grid -->
+            <div class="items-grid" id="catalog-items-grid"></div>
+
+            <!-- Bill Summary Footer Drawer -->
+            <div class="bill-dock">
+              <div class="bill-summary-row">
+                <div>
+                  <span class="bill-count-label" id="cart-item-count">0 items</span>
+                  <div class="bill-total-val" id="cart-total-val">₹0.00</div>
+                </div>
+                <div class="bill-action-btns">
+                  <button id="cart-khata-btn" class="btn-outline-primary" disabled>📒 Add to Khata</button>
+                  <button id="cart-pay-btn" class="btn-paytm-primary" disabled>
+                    <span>Pay with Paytm</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 2: AI RECOVERY TOWER ==================== -->
+        <section id="pane-recovery" class="tab-pane">
+          <div class="pane-content">
+            <!-- Incident Banner -->
+            <div class="incident-card">
+              <div class="incident-header">
+                <div>
+                  <span class="incident-tag">Paytm Network Recovery</span>
+                  <h2 class="incident-title">Autonomous Recovery Tower</h2>
+                </div>
+                <span class="badge-recovery-active">Live Incident</span>
+              </div>
+              <p class="incident-desc">14 failed checkout events split into autonomous execution, owner approvals, and strict zero-duplicate guardrails.</p>
+              
+              <!-- 4 Metrics Row -->
+              <div class="kpi-grid">
+                <div class="kpi-card">
+                  <div class="kpi-num">14</div>
+                  <div class="kpi-lbl">Total Failed</div>
+                </div>
+                <div class="kpi-card kpi-auto">
+                  <div class="kpi-num" id="kpi-auto-num">9</div>
+                  <div class="kpi-lbl">Auto Recovered</div>
+                </div>
+                <div class="kpi-card kpi-owner">
+                  <div class="kpi-num" id="kpi-owner-num">2</div>
+                  <div class="kpi-lbl">Owner Review</div>
+                </div>
+                <div class="kpi-card kpi-blocked">
+                  <div class="kpi-num">3</div>
+                  <div class="kpi-lbl">Blocked (Safety)</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Replay Webhook Idempotency Demo Bar -->
+            <div class="webhook-replay-box">
+              <div class="replay-info">
+                <strong>Idempotency Engine:</strong>
+                <span>Replay duplicate Paytm webhook to prove 0 double-charges</span>
+              </div>
+              <button id="replay-webhook-btn" class="btn-warning-sm">Replay Webhook</button>
+            </div>
+
+            <!-- Cases Filter Bar -->
+            <div class="case-filters">
+              <button class="filter-tab active" data-filter="all">All (14)</button>
+              <button class="filter-tab" data-filter="owner">Needs You (<span id="filter-owner-count">2</span>)</button>
+              <button class="filter-tab" data-filter="auto">Auto (<span id="filter-auto-count">9</span>)</button>
+              <button class="filter-tab" data-filter="blocked">Blocked (3)</button>
+            </div>
+
+            <!-- Cases List -->
+            <div class="cases-container" id="cases-list-container"></div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 3: KHATA DIGITAL LEDGER ==================== -->
+        <section id="pane-khata" class="tab-pane">
+          <div class="pane-content">
+            <!-- Khata Header Card -->
+            <div class="khata-header-card">
+              <div class="khata-title-row">
+                <div>
+                  <span class="khata-subtitle">Digital Udhaar Book</span>
+                  <div class="khata-grand-total" id="khata-grand-total">₹3,350</div>
+                  <span class="khata-total-caption">Total Outstanding Udhaar</span>
+                </div>
+                <button id="open-add-entry-btn" class="btn-add-entry">
+                  <span>+ Add Entry</span>
+                </button>
+              </div>
+              <div class="khata-summary-chips">
+                <span class="summary-chip">👥 4 Active Accounts</span>
+                <span class="summary-chip">⚡ Self-Healing Sync</span>
+                <span class="summary-chip">🔒 Immutable Ledger</span>
+              </div>
+            </div>
+
+            <!-- Customer Search / Filter -->
+            <div class="search-bar-wrap">
+              <input id="khata-search" type="text" placeholder="Search customer name or phone…">
+            </div>
+
+            <!-- Customer Accounts List -->
+            <div class="accounts-list" id="khata-accounts-list"></div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 4: SARKAR AI COPILOT ==================== -->
+        <section id="pane-sarkar" class="tab-pane">
+          <div class="pane-content sarkar-layout">
+            <!-- Sarkar Header & Language Selector -->
+            <div class="sarkar-header">
+              <div class="sarkar-brand">
+                <div class="sarkar-avatar">🤖</div>
+                <div>
+                  <h2 class="sarkar-name">Sarkar AI Copilot</h2>
+                  <p class="sarkar-status">Sarvam Indian AI · Voice & Business Intel</p>
+                </div>
+              </div>
+              <!-- Language Chips -->
+              <div class="lang-selector-scroll">
+                <button class="lang-chip active" data-lang="hi">हिंदी (Hindi)</button>
+                <button class="lang-chip" data-lang="hinglish">Hinglish</button>
+                <button class="lang-chip" data-lang="en">English</button>
+                <button class="lang-chip" data-lang="kn">ಕನ್ನಡ (Kannada)</button>
+                <button class="lang-chip" data-lang="te">తెలుగు (Telugu)</button>
+                <button class="lang-chip" data-lang="ta">தமிழ் (Tamil)</button>
+              </div>
+            </div>
+
+            <!-- Suggested Prompt Chips -->
+            <div class="prompts-scroll">
+              <button class="prompt-chip" data-q="Aaj ki recovery kitni hui?">📊 Aaj ki recovery summary?</button>
+              <button class="prompt-chip" data-q="Priya Traders ka hisaab batao">📒 Priya Traders balance?</button>
+              <button class="prompt-chip" data-q="Kon sa stock khatam ho raha hai?">📦 Low stock alert?</button>
+              <button class="prompt-chip" data-q="GST report nikaalo">📑 Monthly GST summary?</button>
+            </div>
+
+            <!-- Chat Messages Container -->
+            <div class="chat-container" id="sarkar-chat-container"></div>
+
+            <!-- Chat Input Area -->
+            <div class="chat-input-bar">
+              <button id="sarkar-mic-btn" class="mic-btn" title="Voice Input">🎤</button>
+              <input id="sarkar-text-input" type="text" placeholder="Poochiye (Ask Sarkar anything)…">
+              <button id="sarkar-send-btn" class="send-btn" title="Send">➤</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 5: SOUNDBOX LIVE ==================== -->
+        <section id="pane-soundbox" class="tab-pane">
+          <div class="pane-content">
+            <!-- 3D Soundbox Hardware Widget -->
+            <div class="soundbox-device-card">
+              <div class="soundbox-hw">
+                <div class="soundbox-top-edge">
+                  <span class="paytm-brand-text">Paytm</span>
+                  <span class="hw-4g-tag">4G IoT</span>
+                </div>
+                <div class="soundbox-grill">
+                  <div class="led-light-ring" id="hw-led"></div>
+                  <div class="grill-holes">
+                    <span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span>
+                  </div>
+                </div>
+                <div class="soundbox-status-bar">
+                  <span class="soundbox-live-pill" id="hw-status-pill">Connected & Armed</span>
+                  <span class="hw-vol">🔊 100%</span>
+                </div>
+              </div>
+
+              <!-- Interactive Controls -->
+              <div class="soundbox-controls">
+                <button id="play-sound-test-btn" class="btn-paytm-primary">
+                  <span>🔊 Test Soundbox Chime</span>
+                </button>
+                <div class="sim-buttons-row">
+                  <button class="sim-pay-btn" data-amt="200">Simulate ₹200</button>
+                  <button class="sim-pay-btn" data-amt="450">Simulate ₹450</button>
+                  <button class="sim-pay-btn" data-amt="8400">Simulate ₹8,400</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Soundbox Event Stream -->
+            <div class="sound-events-card">
+              <div class="events-card-head">
+                <h3>Verified Payment Broadcasts</h3>
+                <span class="badge-verified">Status Verified</span>
+              </div>
+              <div class="sound-events-list" id="sound-events-stream"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Bottom Navigation Bar (5 Tabs) -->
+      <nav class="bottom-nav">
+        <button class="nav-item active" data-target="billing">
+          <span class="nav-icon">🧾</span>
+          <span class="nav-label">Billing</span>
+        </button>
+        <button class="nav-item" data-target="recovery">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-label">Recovery</span>
+          <span class="nav-badge" id="nav-owner-badge">2</span>
+        </button>
+        <button class="nav-item" data-target="khata">
+          <span class="nav-icon">📒</span>
+          <span class="nav-label">Khata</span>
+        </button>
+        <button class="nav-item" data-target="sarkar">
+          <span class="nav-icon">🤖</span>
+          <span class="nav-label">Sarkar AI</span>
+        </button>
+        <button class="nav-item" data-target="soundbox">
+          <span class="nav-icon">🔊</span>
+          <span class="nav-label">Soundbox</span>
+        </button>
+      </nav>
     </div>
-    <div id="register-section" hidden>
-      <h1>Open a new store</h1>
-      <p>Create a merchant account and launch your digital store.</p>
-      <form id="register-form" class="form" autocomplete="off">
-        <label for="reg-business">Business name<input id="reg-business" name="business_name" required placeholder="e.g. Sri Krishna Retail" maxlength="120"></label>
-        <label for="reg-store">Store name<input id="reg-store" name="store_name" required placeholder="e.g. Koramangala Main" maxlength="120"></label>
-        <label for="reg-username">Owner username<input id="reg-username" name="username" required placeholder="letters, numbers, dot, underscore" maxlength="120"></label>
-        <label for="reg-password">Password (14+ chars, letters &amp; numbers/symbols)<input id="reg-password" name="password" type="password" required minlength="14" maxlength="1024"></label>
-        <label for="reg-city">City<input id="reg-city" name="city" placeholder="e.g. Bengaluru" maxlength="100"></label>
-        <label for="reg-phone">Phone<input id="reg-phone" name="phone" placeholder="e.g. 9876543210" maxlength="20"></label>
-        <button id="reg-submit" type="submit">Register &amp; Open Store</button>
-        <p id="reg-message" class="error" role="alert" aria-live="polite"></p>
-        <p id="reg-status" class="status" aria-live="polite"></p>
-      </form>
+  </div>
+
+  <!-- ==================== MODAL: KHATA MANUAL ENTRY ==================== -->
+  <div id="khata-entry-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">Record Khata Transaction</h3>
+        <button class="modal-close-btn" id="close-modal-btn">✕</button>
+      </div>
+
+      <!-- Gave (Udhaar) vs Got (Jama) Segmented Toggle -->
+      <div class="entry-mode-toggle">
+        <button id="toggle-gave" class="mode-btn mode-gave active">Udhaar Diya (Gave)</button>
+        <button id="toggle-got" class="mode-btn mode-got">Jama Mila (Got)</button>
+      </div>
+
+      <!-- Customer Select or New -->
+      <div class="modal-field">
+        <label>Customer</label>
+        <select id="modal-customer-select">
+          <option value="khata_9876543220">Ramesh Kumar (₹450)</option>
+          <option value="khata_9876543221">Priya Traders (₹850)</option>
+          <option value="khata_9876543222">Suresh Gowda (₹1,200)</option>
+          <option value="khata_9876543223">Girish Hegde (₹850)</option>
+          <option value="new">+ Add New Customer</option>
+        </select>
+      </div>
+
+      <div id="new-cust-fields" class="new-cust-box" hidden>
+        <input id="new-cust-name" type="text" placeholder="Customer Full Name (e.g. Anand Rao)">
+        <input id="new-cust-phone" type="tel" placeholder="10-digit Mobile Number" maxlength="10">
+      </div>
+
+      <!-- Quick Amount Chips -->
+      <div class="modal-field">
+        <label>Amount (₹)</label>
+        <div class="quick-chips-row">
+          <button class="amt-chip" data-amt="100">+₹100</button>
+          <button class="amt-chip" data-amt="200">+₹200</button>
+          <button class="amt-chip" data-amt="500">+₹500</button>
+          <button class="amt-chip" data-amt="1000">+₹1,000</button>
+          <button class="amt-chip" data-amt="2000">+₹2,000</button>
+        </div>
+        <input id="modal-amount-input" type="number" step="0.01" placeholder="Enter amount (e.g. 200)">
+      </div>
+
+      <!-- Note / Items -->
+      <div class="modal-field">
+        <label>Note / Items Description</label>
+        <input id="modal-note-input" type="text" placeholder="e.g. Atta 5kg, Sugar 1kg">
+      </div>
+
+      <!-- Payment Method -->
+      <div class="modal-field">
+        <label>Payment Method</label>
+        <select id="modal-method-select">
+          <option value="CASH">Cash</option>
+          <option value="UPI">Paytm UPI / QR</option>
+          <option value="OTHER">Credit / Store Udhaar</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancel-entry-btn" class="btn-text">Cancel</button>
+        <button id="submit-entry-btn" class="btn-paytm-primary">Record Entry</button>
+      </div>
     </div>
-  </main>
-  <script src="/static/login.js" defer></script>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-notify" class="toast-box" hidden></div>
+
+  <!-- Core App Scripts -->
+  <script src="/app.js"></script>
 </body>
 </html>

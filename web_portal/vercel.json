@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/login",
-      "destination": "/login.html"
+      "destination": "/index.html"
     },
     {
       "source": "/shop",
