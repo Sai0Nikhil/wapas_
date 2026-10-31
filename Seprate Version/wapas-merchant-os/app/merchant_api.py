@@ -207,6 +207,17 @@ class KhataReversal(BaseModel):
     reason: str = Field(min_length=3, max_length=240)
 
 
+class KhataManualEntry(BaseModel):
+    account_id: str | None = None
+    customer_name: str | None = None
+    customer_phone: str | None = None
+    entry_type: str = Field(default="CREDIT_GIVEN", pattern="^(CREDIT_GIVEN|REPAYMENT|DEBIT|CREDIT|UDHAAR|JAMA)$")
+    amount_paise: int = Field(gt=0)
+    payment_method: str = Field(default="CASH", pattern="^(CASH|OTHER|UPI|MANUAL)$")
+    idempotency_key: str | None = None
+    note: str = Field(default="", max_length=240)
+
+
 class SoundDeviceRegister(BaseModel):
     device_key: str = Field(pattern=r"^[A-Za-z0-9_-]{20,80}$")
 
@@ -848,6 +859,39 @@ def reverse_khata_entry(entry_id: str, body: KhataReversal):
         except khata.KhataError as e:
             s.rollback()
             raise HTTPException(409, str(e)) from e
+
+
+@router.post("/api/merchant/khata/entries")
+def add_khata_manual_entry(body: KhataManualEntry):
+    with session() as s:
+        try:
+            account, entry, balance = khata.add_manual_entry(
+                s,
+                merchant_id=current_merchant_id(),
+                store_id=current_store_id(),
+                account_id=body.account_id,
+                customer_phone=body.customer_phone,
+                customer_name=body.customer_name,
+                entry_type=body.entry_type,
+                amount_paise=body.amount_paise,
+                note=body.note,
+                payment_method=body.payment_method,
+                idempotency_key=body.idempotency_key,
+            )
+            customer = s.get(Customer, account.customer_id)
+            audit.record(s, action="khata.manual_entry_added", entity_type="khata_account", entity_id=account.id,
+                         merchant_id=current_merchant_id(), store_id=current_store_id(), actor_type="merchant", actor_id="local-owner",
+                         source="manual_entry", idempotency_key="audit:khata-manual:" + entry.id,
+                         payload={"entry_id": entry.id, "amount_paise": entry.delta_paise, "entry_type": entry.entry_type})
+            s.commit()
+            return {
+                "account": _khata_account_row(account, customer, balance),
+                "entry": _khata_entry_row(entry, balance),
+                "outstanding_paise": balance,
+            }
+        except khata.KhataError as e:
+            s.rollback()
+            raise HTTPException(400, str(e)) from e
 
 
 @router.get("/api/merchant/orders")

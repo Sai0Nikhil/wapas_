@@ -6,6 +6,7 @@ import '../providers/khata_providers.dart';
 import 'khata/khata_aging_card.dart';
 import 'khata/khata_account_detail_sheet.dart';
 import 'khata/khata_voice_record_modal.dart';
+import 'khata/khata_manual_entry_dialog.dart';
 
 class KhataLedgerScreen extends ConsumerStatefulWidget {
   const KhataLedgerScreen({super.key});
@@ -23,6 +24,49 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
     super.dispose();
   }
 
+  void _openManualEntryDialog(BuildContext context, {KhataAccountModel? account, String initialType = "CREDIT_GIVEN"}) {
+    final accounts = ref.read(khataLedgerProvider).accounts;
+    showDialog(
+      context: context,
+      builder: (ctx) => KhataManualEntryDialog(
+        preselectedAccount: account,
+        existingAccounts: accounts,
+        initialType: initialType,
+        onSubmit: ({
+          String? accountId,
+          String? customerName,
+          String? customerPhone,
+          required String entryType,
+          required double amountInr,
+          String note = '',
+          String paymentMethod = 'CASH',
+        }) async {
+          final ok = await ref.read(khataLedgerProvider.notifier).addManualEntry(
+            accountId: accountId,
+            customerName: customerName,
+            customerPhone: customerPhone,
+            entryType: entryType,
+            amountInr: amountInr,
+            note: note,
+            paymentMethod: paymentMethod,
+          );
+          if (context.mounted && ok) {
+            final isUdhaar = entryType == "CREDIT_GIVEN";
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: isUdhaar ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32),
+                content: Text(
+                  "${isUdhaar ? 'Udhaar' : 'Payment'} of ₹${amountInr.toStringAsFixed(0)} for '${customerName ?? 'Customer'}' saved!",
+                ),
+              ),
+            );
+          }
+          return ok;
+        },
+      ),
+    );
+  }
+
   void _openVoiceRecordModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -30,30 +74,24 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => KhataVoiceRecordModal(
         onParsedEntry: (name, debit, credit, note) async {
-          // Find or create account
-          final accounts = ref.read(khataLedgerProvider).accounts;
-          KhataAccountModel? matched;
-          for (var a in accounts) {
-            if (a.customerName.toLowerCase().contains(name.toLowerCase())) {
-              matched = a;
-              break;
-            }
-          }
-          if (matched != null) {
-            if (credit > 0) {
-              await ref.read(khataLedgerProvider.notifier).recordRepayment(
-                accountId: matched.id,
-                amountInr: credit,
-                method: "CASH",
-                note: note,
-              );
-            }
-          }
-          if (context.mounted) {
+          final isDebit = debit > 0;
+          final amount = isDebit ? debit : credit;
+          if (amount <= 0) return;
+
+          final ok = await ref.read(khataLedgerProvider.notifier).addManualEntry(
+            customerName: name,
+            entryType: isDebit ? "CREDIT_GIVEN" : "REPAYMENT",
+            amountInr: amount,
+            note: note,
+          );
+
+          if (context.mounted && ok) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                backgroundColor: const Color(0xFF2E7D32),
-                content: Text("Voice entry for '$name' saved to Khata!"),
+                backgroundColor: isDebit ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32),
+                content: Text(
+                  "AI Entry: ₹${amount.toStringAsFixed(0)} ${isDebit ? 'Udhaar' : 'Jama'} for '$name' saved to Khata!",
+                ),
               ),
             );
           }
@@ -68,7 +106,10 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => KhataAccountDetailSheet(account: account),
+      builder: (ctx) => KhataAccountDetailSheet(
+        account: account,
+        onAddUdhaar: () => _openManualEntryDialog(context, account: account, initialType: "CREDIT_GIVEN"),
+      ),
     );
   }
 
@@ -92,6 +133,11 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.secondary),
+            tooltip: "Add Manual Entry / Customer",
+            onPressed: () => _openManualEntryDialog(context),
+          ),
           IconButton(
             icon: const Icon(Icons.camera_alt_rounded, color: AppColors.secondary),
             tooltip: "Scan Parchi (OCR)",
@@ -160,12 +206,23 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.account_balance_wallet_outlined, size: 48, color: AppColors.outline),
-                              SizedBox(height: 12),
-                              Text(
+                            children: [
+                              const Icon(Icons.account_balance_wallet_outlined, size: 48, color: AppColors.outline),
+                              const SizedBox(height: 12),
+                              const Text(
                                 "No Khata accounts found",
                                 style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.outline),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0051D5),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text("Add First Khata Entry"),
+                                onPressed: () => _openManualEntryDialog(context),
                               ),
                             ],
                           ),
@@ -217,7 +274,7 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            account.phone,
+                                            account.phone.isNotEmpty ? account.phone : "Customer",
                                             style: const TextStyle(fontSize: 12, color: AppColors.outline),
                                           ),
                                         ],
@@ -257,12 +314,29 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF6C63FF),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.document_scanner_rounded),
-        label: const Text("Scan Parchi / Voice", style: TextStyle(fontWeight: FontWeight.bold)),
-        onPressed: () => _openVoiceRecordModal(context),
+      floatingActionButton: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: "fab_manual_entry",
+            backgroundColor: const Color(0xFF0051D5),
+            foregroundColor: Colors.white,
+            elevation: 3,
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text("Add Entry", style: TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: () => _openManualEntryDialog(context),
+          ),
+          const SizedBox(width: 10),
+          FloatingActionButton.extended(
+            heroTag: "fab_voice_parchi",
+            backgroundColor: const Color(0xFF6C63FF),
+            foregroundColor: Colors.white,
+            elevation: 3,
+            icon: const Icon(Icons.document_scanner_rounded, size: 18),
+            label: const Text("Scan / Voice", style: TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: () => _openVoiceRecordModal(context),
+          ),
+        ],
       ),
     );
   }

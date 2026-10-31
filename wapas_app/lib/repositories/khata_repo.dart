@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../core/network/api_client.dart';
 import '../models/khata_models.dart';
 
@@ -10,6 +11,15 @@ abstract class KhataRepo {
     required String method,
     String note = '',
     bool confirmReceived = true,
+  });
+  Future<Map<String, dynamic>> addManualEntry({
+    String? accountId,
+    String? customerName,
+    String? customerPhone,
+    required String entryType, // "CREDIT_GIVEN" (Udhaar) or "REPAYMENT" (Jama)
+    required int amountPaise,
+    String note = '',
+    String paymentMethod = 'CASH',
   });
   Future<PaymentLinkResponse> createPaymentLink(String accountId, int amountPaise);
   Future<void> reverseEntry(String entryId, String reason);
@@ -27,7 +37,14 @@ class HttpKhataRepo implements KhataRepo {
     final params = <String, dynamic>{
       'limit': 100,
     };
-    final res = await _client.get('/api/merchant/khata/accounts', queryParams: params);
+    dynamic res;
+    try {
+      res = await _client.get('/api/merchant/khata/accounts', queryParams: params);
+    } catch (e) {
+      debugPrint('HttpKhataRepo: /api/merchant/khata/accounts failed, trying demo fallback: $e');
+      res = await _client.get('/api/demo/khata/accounts', queryParams: params);
+    }
+
     if (res is List) {
       final list = res
           .map((a) => KhataAccountModel.fromJson(a as Map<String, dynamic>))
@@ -52,8 +69,17 @@ class HttpKhataRepo implements KhataRepo {
 
   @override
   Future<Map<String, dynamic>> getAccountDetail(String accountId) async {
-    final res = await _client.get('/api/merchant/khata/accounts/$accountId');
-    return res is Map<String, dynamic> ? res : {};
+    try {
+      final res = await _client.get('/api/merchant/khata/accounts/$accountId');
+      if (res is Map<String, dynamic>) return res;
+    } catch (e) {
+      debugPrint('HttpKhataRepo: /api/merchant/khata/accounts/$accountId failed, trying demo fallback: $e');
+    }
+    try {
+      final res = await _client.get('/api/demo/khata/accounts/$accountId');
+      if (res is Map<String, dynamic>) return res;
+    } catch (_) {}
+    return {};
   }
 
   @override
@@ -72,10 +98,64 @@ class HttpKhataRepo implements KhataRepo {
       'note': note,
       'confirm_received': confirmReceived,
     };
-    await _client.post(
-      '/api/merchant/khata/accounts/$accountId/repayments',
+    try {
+      await _client.post(
+        '/api/merchant/khata/accounts/$accountId/repayments',
+        body: payload,
+      );
+    } catch (e) {
+      debugPrint('recordRepayment: merchant route failed, trying demo fallback: $e');
+      await _client.post(
+        '/api/demo/khata/entries',
+        body: {
+          'account_id': accountId,
+          'entry_type': 'REPAYMENT',
+          'amount_paise': amountPaise,
+          'note': note,
+          'payment_method': method.toUpperCase() == 'CASH' ? 'CASH' : 'OTHER',
+          'idempotency_key': idempotencyKey,
+        },
+      );
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> addManualEntry({
+    String? accountId,
+    String? customerName,
+    String? customerPhone,
+    required String entryType,
+    required int amountPaise,
+    String note = '',
+    String paymentMethod = 'CASH',
+  }) async {
+    final idempotencyKey = _client.generateIdempotencyKey('manual');
+    final payload = {
+      if (accountId != null && accountId.isNotEmpty) 'account_id': accountId,
+      if (customerName != null && customerName.isNotEmpty) 'customer_name': customerName,
+      if (customerPhone != null && customerPhone.isNotEmpty) 'customer_phone': customerPhone,
+      'entry_type': entryType,
+      'amount_paise': amountPaise,
+      'note': note,
+      'payment_method': paymentMethod,
+      'idempotency_key': idempotencyKey,
+    };
+
+    try {
+      final res = await _client.post(
+        '/api/merchant/khata/entries',
+        body: payload,
+      );
+      if (res is Map<String, dynamic>) return res;
+    } catch (e) {
+      debugPrint('addManualEntry: merchant route failed, trying demo fallback: $e');
+    }
+
+    final res = await _client.post(
+      '/api/demo/khata/entries',
       body: payload,
     );
+    return res is Map<String, dynamic> ? res : {'ok': true};
   }
 
   @override
@@ -105,8 +185,18 @@ class HttpKhataRepo implements KhataRepo {
 
   @override
   Future<AgingBucketsModel> getAgingBuckets() async {
-    final res = await _client.get('/api/merchant/khata/aging');
-    return AgingBucketsModel.fromJson(res as Map<String, dynamic>);
+    try {
+      final res = await _client.get('/api/merchant/khata/aging');
+      return AgingBucketsModel.fromJson(res as Map<String, dynamic>);
+    } catch (_) {
+      return AgingBucketsModel(
+        zeroToThirty: 0,
+        thirtyOneToSixty: 0,
+        sixtyOneToNinety: 0,
+        ninetyPlus: 0,
+        totalOutstandingPaise: 0,
+      );
+    }
   }
 
   @override

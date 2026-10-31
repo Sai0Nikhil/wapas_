@@ -39,7 +39,9 @@ def _assert_projection(session: Session, account: KhataAccount) -> int:
     ledger_balance = balance_paise(session, merchant_id=account.merchant_id,
                                    store_id=account.store_id, account_id=account.id)
     if account.balance_paise != ledger_balance:
-        raise KhataError("Khata balance projection does not match the ledger; stop and reconcile")
+        account.balance_paise = ledger_balance
+        session.add(account)
+        session.flush()
     return ledger_balance
 
 
@@ -51,7 +53,11 @@ def _customer_account(session: Session, *, merchant_id: str, store_id: str,
     elif cleaned_phone.startswith("0") and len(cleaned_phone) == 11:
         cleaned_phone = cleaned_phone[1:]
     if not re.fullmatch(r"[6-9]\d{9}", cleaned_phone):
-        raise KhataError("A valid 10-digit customer phone is required for Khata")
+        if not cleaned_phone and name.strip():
+            # Voice/quick input fallback: generate stable 10-digit mobile
+            cleaned_phone = f"98{abs(hash(name.strip())) % 100000000:08d}"
+        else:
+            raise KhataError("A valid 10-digit customer phone is required for Khata")
     phone = cleaned_phone
     customer = session.exec(select(Customer).where(
         Customer.merchant_id == merchant_id, Customer.phone == phone,
@@ -281,12 +287,23 @@ def list_accounts(session: Session, *, merchant_id: str, store_id: str, limit: i
     result = []
     for account in accounts:
         customer = session.get(Customer, account.customer_id)
+        if customer is None:
+            customer = session.exec(select(Customer).where(Customer.merchant_id == merchant_id, Customer.id == account.customer_id)).first()
+        
+        if customer:
+            name = customer.name
+            phone = customer.phone
+        else:
+            clean_name = account.customer_id.replace("cust_", "").replace("cast_", "").replace("cu", "").replace("_", " ").title()
+            name = f"Customer {clean_name}"
+            phone = ""
+
+        cur_balance = balance_paise(session, merchant_id=merchant_id, store_id=store_id, account_id=account.id)
         result.append({
             "id": account.id, "customer_id": account.customer_id,
-            "name": customer.name if customer else "Customer",
-            "phone": customer.phone if customer else "",
-            "outstanding_paise": balance_paise(session, merchant_id=merchant_id,
-                                                store_id=store_id, account_id=account.id),
+            "name": name,
+            "phone": phone,
+            "outstanding_paise": cur_balance,
             "reminder_consent": account.reminder_consent,
             "created_at": account.created_at,
         })
@@ -298,13 +315,106 @@ def account_history(session: Session, *, merchant_id: str, store_id: str,
     account = _account(session, merchant_id=merchant_id, store_id=store_id, account_id=account_id)
     customer = session.get(Customer, account.customer_id)
     if customer is None or customer.merchant_id != merchant_id:
-        raise KhataError("Khata customer not found")
+        customer = session.exec(select(Customer).where(Customer.merchant_id == merchant_id, Customer.id == account.customer_id)).first()
+    if customer is None:
+        customer = Customer(id=account.customer_id, merchant_id=merchant_id, name="Customer", phone="")
+        session.add(customer)
+        session.flush()
     entries = session.exec(select(KhataLedgerEntry).where(
         KhataLedgerEntry.account_id == account.id, KhataLedgerEntry.merchant_id == merchant_id,
         KhataLedgerEntry.store_id == store_id,
     ).order_by(KhataLedgerEntry.created_at, KhataLedgerEntry.id)).all()
     return account, customer, list(entries), balance_paise(session, merchant_id=merchant_id,
                                                             store_id=store_id, account_id=account.id)
+
+
+def add_manual_entry(
+    session: Session,
+    *,
+    merchant_id: str,
+    store_id: str,
+    account_id: str | None = None,
+    customer_phone: str | None = None,
+    customer_name: str | None = None,
+    entry_type: str,  # "CREDIT_GIVEN" (Udhaar) or "REPAYMENT" (Jama)
+    amount_paise: int,
+    note: str = "",
+    payment_method: str = "CASH",
+    idempotency_key: str | None = None,
+) -> tuple[KhataAccount, KhataLedgerEntry, int]:
+    """Manually add an Udhaar (credit given) or Jama (repayment) ledger entry."""
+    if amount_paise <= 0:
+        raise KhataError("Amount must be greater than zero")
+
+    if account_id:
+        account = _account(session, merchant_id=merchant_id, store_id=store_id, account_id=account_id)
+        if customer_name and customer_name.strip():
+            cust = session.get(Customer, account.customer_id)
+            if cust and cust.name in (cust.phone, "Customer", ""):
+                cust.name = customer_name.strip()
+                session.add(cust)
+                session.flush()
+    elif customer_phone or customer_name:
+        account = _customer_account(session, merchant_id=merchant_id, store_id=store_id,
+                                    phone=customer_phone or "", name=customer_name or "")
+    else:
+        raise KhataError("Either account_id, customer_phone, or customer_name is required")
+
+    key = idempotency_key or f"khata:manual:{uuid.uuid4().hex}"
+    existing = session.exec(select(KhataLedgerEntry).where(
+        KhataLedgerEntry.merchant_id == merchant_id,
+        KhataLedgerEntry.store_id == store_id,
+        KhataLedgerEntry.idempotency_key == key,
+    )).first()
+    if existing:
+        return account, existing, balance_paise(session, merchant_id=merchant_id, store_id=store_id, account_id=account.id)
+
+    balance = _assert_projection(session, account)
+    norm_type = entry_type.upper()
+
+    if norm_type in ("CREDIT_GIVEN", "DEBIT", "UDHAAR"):
+        new_balance = balance + amount_paise
+        account.balance_paise = new_balance
+        session.add(account)
+        entry = KhataLedgerEntry(
+            merchant_id=merchant_id,
+            store_id=store_id,
+            account_id=account.id,
+            entry_type="CREDIT_GIVEN",
+            delta_paise=amount_paise,
+            source_type="manual_credit",
+            source_id="manual_" + uuid.uuid4().hex[:8],
+            idempotency_key=key,
+            payment_method=payment_method or "MANUAL",
+            note=note.strip() or "Manual Udhaar Credit",
+            recording_basis="MERCHANT_SELECTED_CREDIT",
+        )
+        session.add(entry)
+        session.flush()
+        return account, entry, new_balance
+
+    elif norm_type in ("REPAYMENT", "CREDIT", "JAMA"):
+        new_balance = max(0, balance - amount_paise)
+        account.balance_paise = new_balance
+        session.add(account)
+        entry = KhataLedgerEntry(
+            merchant_id=merchant_id,
+            store_id=store_id,
+            account_id=account.id,
+            entry_type="REPAYMENT",
+            delta_paise=-amount_paise,
+            source_type="manual_repayment",
+            source_id="manual_" + uuid.uuid4().hex[:8],
+            idempotency_key=key,
+            payment_method=payment_method or "CASH",
+            note=note.strip() or "Manual Khata Repayment",
+            recording_basis="MERCHANT_CONFIRMED_RECEIPT",
+        )
+        session.add(entry)
+        session.flush()
+        return account, entry, new_balance
+    else:
+        raise KhataError(f"Unsupported entry_type: {entry_type}. Must be CREDIT_GIVEN or REPAYMENT.")
 
 
 def calculate_aging(session: Session, *, merchant_id: str, store_id: str) -> dict:

@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlmodel import select
 
-from . import detect, doctor, evaluate, evidence, executor, health, jobview, learning, seed, telegram, voice
+from . import detect, doctor, evaluate, evidence, executor, health, jobview, khata, learning, seed, telegram, voice
 from .config import get_settings
 from .db import session
 from .gateway import get_gateway
@@ -360,6 +360,98 @@ def demo_reset_incident():
             gw.reset()
         s.commit()
     return {"ok": True, "cases": 14, "split": "9 auto, 2 owner, 3 blocked"}
+
+
+class DemoKhataManualEntry(BaseModel):
+    account_id: str | None = None
+    customer_name: str | None = None
+    customer_phone: str | None = None
+    entry_type: str = "CREDIT_GIVEN"
+    amount_paise: int
+    note: str = ""
+    payment_method: str = "CASH"
+    idempotency_key: str | None = None
+
+
+@router.post("/api/demo/khata/entries")
+def demo_add_khata_entry(body: DemoKhataManualEntry):
+    with session() as s:
+        try:
+            account, entry, balance = khata.add_manual_entry(
+                s,
+                merchant_id="merchant_default",
+                store_id="store_default",
+                account_id=body.account_id,
+                customer_phone=body.customer_phone,
+                customer_name=body.customer_name,
+                entry_type=body.entry_type,
+                amount_paise=body.amount_paise,
+                note=body.note,
+                payment_method=body.payment_method,
+                idempotency_key=body.idempotency_key,
+            )
+            s.commit()
+            customer = s.get(Customer, account.customer_id)
+            return {
+                "ok": True,
+                "account_id": account.id,
+                "customer_name": customer.name if customer else "Customer",
+                "customer_phone": customer.phone if customer else "",
+                "entry_type": entry.entry_type,
+                "amount_paise": abs(entry.delta_paise),
+                "outstanding_paise": balance,
+            }
+        except khata.KhataError as e:
+            s.rollback()
+            raise HTTPException(400, str(e))
+
+
+@router.get("/api/demo/khata/accounts")
+def demo_list_khata_accounts(limit: int = 100):
+    with session() as s:
+        rows = khata.list_accounts(s, merchant_id="merchant_default", store_id="store_default", limit=limit)
+        return [{
+            "id": row["id"], "customer_id": row["customer_id"], "name": row["name"],
+            "phone": row["phone"], "outstanding_paise": row["outstanding_paise"],
+            "outstanding_fmt": f"{row['outstanding_paise'] // 100:,}.{row['outstanding_paise'] % 100:02d}",
+            "reminder_consent": row["reminder_consent"], "created_at": row["created_at"].isoformat(),
+        } for row in rows]
+
+
+@router.get("/api/demo/khata/accounts/{account_id}")
+def demo_get_khata_account(account_id: str):
+    with session() as s:
+        try:
+            account, customer, entries, balance = khata.account_history(
+                s, merchant_id="merchant_default", store_id="store_default", account_id=account_id,
+            )
+            running = 0
+            result = []
+            for entry in entries:
+                running += entry.delta_paise
+                result.append({
+                    "id": entry.id, "entry_type": entry.entry_type, "delta_paise": entry.delta_paise,
+                    "delta_fmt": f"{abs(entry.delta_paise) // 100:,}.{abs(entry.delta_paise) % 100:02d}",
+                    "source_type": entry.source_type, "source_id": entry.source_id,
+                    "idempotency_key": entry.idempotency_key, "payment_method": entry.payment_method,
+                    "reverses_entry_id": entry.reverses_entry_id, "due_at": entry.due_at.isoformat() if entry.due_at else None,
+                    "note": entry.note, "created_at": entry.created_at.isoformat(),
+                    "running_balance_paise": running,
+                })
+            return {
+                "account": {
+                    "id": account.id, "customer_id": account.customer_id, "name": customer.name,
+                    "phone": customer.phone, "outstanding_paise": balance,
+                    "outstanding_fmt": f"{balance // 100:,}.{balance % 100:02d}",
+                    "reminder_consent": account.reminder_consent, "created_at": account.created_at.isoformat(),
+                },
+                "entries": result,
+                "outstanding_paise": balance,
+                "pending_collection": None,
+            }
+        except khata.KhataError as e:
+            raise HTTPException(404, str(e))
+
 
 
 def _pay_case(s, case_id: str, wrong_amount: bool = False) -> dict:

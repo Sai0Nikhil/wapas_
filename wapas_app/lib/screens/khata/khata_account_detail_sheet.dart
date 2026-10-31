@@ -9,10 +9,12 @@ import 'khata_repayment_dialog.dart';
 
 class KhataAccountDetailSheet extends ConsumerWidget {
   final KhataAccountModel account;
+  final VoidCallback? onAddUdhaar;
 
   const KhataAccountDetailSheet({
     super.key,
     required this.account,
+    this.onAddUdhaar,
   });
 
   @override
@@ -79,35 +81,38 @@ class KhataAccountDetailSheet extends ConsumerWidget {
 
           const Divider(),
 
-          // Action buttons: Payment Link, Record Repayment, Statement CSV
+          // Action buttons: Udhaar (Debit), Record Repayment, Payment Link, Statement CSV
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
+                      backgroundColor: const Color(0xFFD32F2F),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    icon: const Icon(Icons.qr_code, size: 16),
-                    label: const Text("Pay Link", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: () => _showPaymentLinkModal(context, ref),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text("+ Udhaar", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onAddUdhaar?.call();
+                    },
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: const Color(0xFF2E7D32),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     icon: const Icon(Icons.payments, size: 16),
-                    label: const Text("Repay", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    label: const Text("Repay", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -119,15 +124,29 @@ class KhataAccountDetailSheet extends ConsumerWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.qr_code, size: 16),
+                    label: const Text("Link", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: () => _showPaymentLinkModal(context, ref),
+                  ),
+                ),
+                const SizedBox(width: 6),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.onSurface,
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  icon: const Icon(Icons.download, size: 16),
-                  label: const Text("CSV", style: TextStyle(fontSize: 12)),
+                  icon: const Icon(Icons.download, size: 14),
+                  label: const Text("CSV", style: TextStyle(fontSize: 11)),
                   onPressed: () => _downloadCsvStatement(context, ref),
                 ),
               ],

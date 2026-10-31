@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import delete, select
 
 from . import detect
+from .khata_models import KhataAccount, KhataLedgerEntry
 from .models import (ActionRecord, Case, Customer, Decision, Event, Message, Outcome, Payment,
                      PolicyResult)
 from .ports import CaseState
@@ -65,7 +66,7 @@ def _pick_lang(rng):
 
 
 def reset(s) -> None:
-    for model in (Message, Outcome, ActionRecord, PolicyResult, Decision, Case, Event, Payment, Customer):
+    for model in (Message, Outcome, ActionRecord, PolicyResult, Decision, Case, Event, Payment, Customer, KhataLedgerEntry, KhataAccount):
         s.exec(delete(model))
     s.commit()
     detect.clear_recovery()
@@ -86,6 +87,45 @@ def seed(s, n_customers: int = 200, seed_value: int = 7) -> None:
         s.add(Customer(id=f"cast_{order}", name=name, phone=f"98{rng.randint(10000000, 99999999)}",
                        language=lang, on_time_count=on_time, late_count=late,
                        opted_out=flags.get("opted_out", False), vip=flags.get("vip", False)))
+
+    # Seed 5 standard Kirana Khata accounts with active customer debt
+    khata_customers = [
+        ("cust_ramesh", "Ramesh Kumar", "9876543220", 345000),
+        ("cust_priya", "Priya Sharma", "9876543221", 120000),
+        ("cust_suresh", "Suresh Patel", "9876543222", 85000),
+        ("cust_anita", "Anita Reddy", "9876543223", 210000),
+        ("cust_rajesh", "Rajesh Verma", "9876543224", 50000),
+    ]
+    for cid, name, phone, balance_paise in khata_customers:
+        cust = s.get(Customer, cid)
+        if not cust:
+            cust = Customer(id=cid, merchant_id="merchant_default", name=name, phone=phone, language="hi")
+            s.add(cust)
+            s.flush()
+        else:
+            cust.name = name
+            cust.phone = phone
+            s.add(cust)
+        acc = s.exec(select(KhataAccount).where(
+            KhataAccount.merchant_id == "merchant_default",
+            KhataAccount.store_id == "store_default",
+            KhataAccount.customer_id == cid,
+        )).first()
+        if not acc:
+            acc = KhataAccount(id="khata_" + cid, merchant_id="merchant_default", store_id="store_default",
+                                customer_id=cid, balance_paise=balance_paise)
+            s.add(acc)
+            s.flush()
+            entry = KhataLedgerEntry(
+                merchant_id="merchant_default", store_id="store_default",
+                account_id=acc.id, entry_type="CREDIT_GIVEN", delta_paise=balance_paise,
+                source_type="manual_credit", source_id=f"init_{cid}", idempotency_key=f"init_khata_{cid}",
+                note="Opening Khata balance", recording_basis="MERCHANT_SELECTED_CREDIT",
+            )
+            s.add(entry)
+        else:
+            acc.balance_paise = balance_paise
+            s.add(acc)
     s.commit()
     ids = [f"cu{i:03d}" for i in range(n_customers)] + [f"cast_{c[0]}" for c in CAST]
     k = 0

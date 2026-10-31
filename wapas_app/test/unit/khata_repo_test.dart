@@ -108,5 +108,30 @@ void main() {
       expect(aging.sixtyOneToNinety, 120000);
       expect(aging.ninetyPlus, 80000);
     });
+
+    test('addManualEntry sends manual credit or repayment payload', () async {
+      mockClient.nextPostResponse = {
+        'ok': true,
+        'account_id': 'khata_1',
+        'entry_type': 'CREDIT_GIVEN',
+        'amount_paise': 25000,
+        'outstanding_paise': 370000,
+      };
+
+      final res = await repo.addManualEntry(
+        customerName: 'Asha Sharma',
+        customerPhone: '9876543299',
+        entryType: 'CREDIT_GIVEN',
+        amountPaise: 25000,
+        note: 'Atta + Dal',
+      );
+
+      expect(res['ok'], true);
+      expect(mockClient.lastPostPath, '/api/merchant/khata/entries');
+      expect(mockClient.lastPostBody?['customer_name'], 'Asha Sharma');
+      expect(mockClient.lastPostBody?['customer_phone'], '9876543299');
+      expect(mockClient.lastPostBody?['amount_paise'], 25000);
+      expect(mockClient.lastPostBody?['entry_type'], 'CREDIT_GIVEN');
+    });
   });
 }

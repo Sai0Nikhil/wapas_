@@ -141,6 +141,41 @@ class KhataLedgerNotifier extends Notifier<KhataLedgerState> {
     }
   }
 
+  Future<bool> addManualEntry({
+    String? accountId,
+    String? customerName,
+    String? customerPhone,
+    required String entryType,
+    required double amountInr,
+    String note = '',
+    String paymentMethod = 'CASH',
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final paise = (amountInr * 100).round();
+      await _repo.addManualEntry(
+        accountId: accountId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        entryType: entryType,
+        amountPaise: paise,
+        note: note,
+        paymentMethod: paymentMethod,
+      );
+      await refresh();
+      if (state.selectedAccount != null) {
+        await selectAccount(state.selectedAccount!);
+      }
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to record entry: $e',
+      );
+      return false;
+    }
+  }
+
   Future<PaymentLinkResponse?> generatePaymentLink(String accountId, double amountInr) async {
     try {
       final paise = (amountInr * 100).toInt();

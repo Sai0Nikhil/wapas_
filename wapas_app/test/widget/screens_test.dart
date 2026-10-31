@@ -91,6 +91,16 @@ class FakeKhataRepo implements KhataRepo {
   @override
   Future<void> recordRepayment({required String accountId, required int amountPaise, required String method, String note = '', bool confirmReceived = true}) async {}
   @override
+  Future<Map<String, dynamic>> addManualEntry({
+    String? accountId,
+    String? customerName,
+    String? customerPhone,
+    required String entryType,
+    required int amountPaise,
+    String note = '',
+    String paymentMethod = 'CASH',
+  }) async => {'ok': true};
+  @override
   Future<PaymentLinkResponse> createPaymentLink(String accountId, int amountPaise) async => throw UnimplementedError();
   @override
   Future<void> reverseEntry(String entryId, String reason) async {}
