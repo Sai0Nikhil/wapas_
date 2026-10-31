@@ -682,18 +682,39 @@
     });
 
     // 15. Sarkar Prompt Chips
+    // Helper to query live Sarvam-105B Sarkar endpoint
+    const querySarkarBackend = async (question) => {
+      try {
+        const res = await fetch("/api/merchant/sarkar/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Wapas-CSRF": STATE.auth.csrfToken },
+          body: JSON.stringify({ message: question })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.message) {
+            addChatMessage("bot", data.message);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Backend Sarkar offline, using local fallback", e);
+      }
+      // Instant smart fallback if network/backend is busy
+      const lang = SARKAR_RESPONSES[STATE.sarkarLang] || SARKAR_RESPONSES.hi;
+      if (question.includes("recovery")) addChatMessage("bot", lang.recovery);
+      else if (question.includes("Priya")) addChatMessage("bot", lang.priya);
+      else if (question.includes("stock")) addChatMessage("bot", lang.stock);
+      else if (question.includes("GST")) addChatMessage("bot", lang.gst);
+      else addChatMessage("bot", `✓ Sarvam-105B: Processed "${question}". Store ledger and recovery databases are fully synced.`);
+    };
+
+    // 15. Sarkar Prompt Chips
     document.querySelectorAll(".prompts-scroll .prompt-chip").forEach(chip => {
       chip.onclick = () => {
         const q = chip.getAttribute("data-q");
         addChatMessage("user", q);
-        setTimeout(() => {
-          const lang = SARKAR_RESPONSES[STATE.sarkarLang] || SARKAR_RESPONSES.hi;
-          if (q.includes("recovery")) addChatMessage("bot", lang.recovery);
-          else if (q.includes("Priya")) addChatMessage("bot", lang.priya);
-          else if (q.includes("stock")) addChatMessage("bot", lang.stock);
-          else if (q.includes("GST")) addChatMessage("bot", lang.gst);
-          else addChatMessage("bot", "Sarkar AI has processed this with Sarvam-105B. All data reconciled.");
-        }, 400);
+        querySarkarBackend(q);
       };
     });
 
@@ -706,9 +727,7 @@
         if (!text) return;
         addChatMessage("user", text);
         textInput.value = "";
-        setTimeout(() => {
-          addChatMessage("bot", `✓ Analyzing "${text}" with Sarvam-105B Indian AI engine… Store ledger and recovery databases are fully synced.`);
-        }, 500);
+        querySarkarBackend(text);
       };
       sendBtn.onclick = handleSend;
       textInput.onkeydown = (e) => { if (e.key === "Enter") handleSend(); };

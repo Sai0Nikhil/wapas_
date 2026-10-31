@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: wapas-backend
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: Seprate Version/wapas-merchant-os
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: WAPAS_ENV
+        value: development
+      - key: APP_ENV
+        value: development
+      - key: TIMEZONE
+        value: Asia/Kolkata
+      - key: GATEWAY
+        value: fake
+      - key: MERCHANT_NAME
+        value: Wapas Kirana Store
+      - key: SARVAM_API_KEY
+        value: sk_tlhz0ys9_CJq36YnlAS1INRQLh8b7vGuT
+      - key: SARVAM_BASE_URL
+        value: https://api.sarvam.ai
+      - key: APPROVAL_SECRET
+        value: wapas-dev-approval-secret-key-32chars
+      - key: APPROVAL_TTL_HOURS
+        value: "12"
+      - key: DATABASE_URL
+        value: sqlite:///./wapas-development.db

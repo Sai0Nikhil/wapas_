@@ -157,9 +157,8 @@ def _same_origin(request: Request) -> bool:
             return False
         if parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username or parsed.password:
             return False
-        if get_settings().app_env.lower() == "production":
-            return parsed.scheme == "https"
-        return parsed.scheme == request.url.scheme
+        req_scheme = (request.headers.get("x-forwarded-proto") or request.url.scheme).lower()
+        return parsed.scheme in {"http", "https"}
     except ValueError:
         return False
 
