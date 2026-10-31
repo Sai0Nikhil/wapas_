@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "name": "wapas-merchant-portal",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/shop",
+      "destination": "/commerce_shop.html"
+    },
+    {
+      "source": "/s/:slug",
+      "destination": "https://rug-crispness-luckless.ngrok-free.dev/s/:slug"
+    },
+    {
+      "source": "/pay/:path*",
+      "destination": "https://rug-crispness-luckless.ngrok-free.dev/pay/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://rug-crispness-luckless.ngrok-free.dev/api/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ]
+}

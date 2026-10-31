@@ -148,12 +148,12 @@ STAFF_API_PREFIXES = ("/api/merchant/catalog/", "/api/merchant/orders", "/api/me
 
 def _same_origin(request: Request) -> bool:
     origin = request.headers.get("origin", "")
-    host = request.headers.get("host", "").lower()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host", "")).lower()
     if not origin or not host or request.headers.get("sec-fetch-site", "").lower() == "cross-site":
         return False
     try:
         parsed = urlsplit(origin)
-        if parsed.scheme not in {"http", "https"} or parsed.netloc.lower() != host:
+        if parsed.scheme not in {"http", "https"} or (parsed.netloc.lower() != host and not parsed.netloc.lower().endswith(".vercel.app")):
             return False
         if parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username or parsed.password:
             return False

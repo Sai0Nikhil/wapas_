@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wapas Store · Store</title>
+<style>
+:root{--paper:#F7F6F2;--ink:#0B1220;--body:#3D4654;--muted:#5F6773;--rule:#D9D6CE;--acc:#1746C8}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,'Segoe UI','Nirmala UI',system-ui,sans-serif}
+header{background:var(--ink);color:#F2F1EC;padding:16px 20px;display:flex;justify-content:space-between;align-items:baseline}
+header b{font-size:20px}header span{color:#A3ACBA;font-size:13px}
+main{max-width:760px;margin:0 auto;padding:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.p{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:14px;cursor:pointer}.p.sel{border-color:var(--acc);box-shadow:0 0 0 2px #C9D6F7}
+.p .n{font-weight:600}.p .a{font-size:22px;font-weight:700;margin-top:6px}
+form{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:16px;margin-top:14px;display:grid;gap:10px}
+label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+input,select{width:100%;padding:11px;border:1px solid #C9CCD3;border-radius:10px;font-size:15px}
+button{padding:13px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+.note{color:var(--muted);font-size:13px}.err{color:#A4262C}
+</style>
+</head>
+<body>
+<header><b>Wapas Store</b><span id="mode">Bengaluru</span></header>
+<main>
+  <div class="grid" id="products"></div>
+  <form id="f">
+    <div><label>Your name</label><input id="name" required value="Rahul Sharma"></div>
+    <div><label>Mobile</label><input id="phone" required pattern="[6-9][0-9]{9}" value="9876543210"></div>
+    <div><label>Preferred language</label><select id="lang"><option value="hi">हिन्दी Hindi</option><option value="kn">ಕನ್ನಡ Kannada</option><option value="ta">தமிழ் Tamil</option><option value="te">తెలుగు Telugu</option><option value="en">English</option></select></div>
+    <button id="pay">Pay with Paytm</button>
+    <p class="note">Test store for the Wapas demo. Payments run on Paytm's test environment; no real money moves.</p>
+    <p class="err" id="err"></p>
+  </form>
+</main>
+<script>
+let product = null;
+fetch("/api/shop/products").then(r => r.json()).then(ps => {
+  const g = document.getElementById("products");
+  g.innerHTML = ps.map(p => `<div class="p" data-id="${p.id}"><div class="n">${p.title}</div><div class="a">₹${p.amount_fmt}</div></div>`).join("");
+  g.querySelectorAll(".p").forEach(el => el.onclick = () => { g.querySelectorAll(".p").forEach(x => x.classList.remove("sel")); el.classList.add("sel"); product = el.dataset.id; });
+  g.querySelector(".p").click();
+});
+document.getElementById("f").onsubmit = async e => {
+  e.preventDefault();
+  const err = document.getElementById("err"); err.textContent = "";
+  const r = await fetch("/api/shop/checkout", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({product, name: document.getElementById("name").value, phone: document.getElementById("phone").value, language: document.getElementById("lang").value})});
+  const d = await r.json();
+  if (!r.ok) { err.textContent = d.detail || "Could not start the payment"; return; }
+  if (d.mode === "fake") { location.href = d.url; return; }
+  // Real Paytm CheckoutJS (staging)
+  const s = document.createElement("script");
+  s.src = d.script_url; s.type = "application/javascript"; s.crossOrigin = "anonymous";
+  s.onload = () => {
+    const config = {root: "", flow: "DEFAULT", merchant: {redirect: true},
+      data: {orderId: d.order_id, token: d.txn_token, tokenType: "TXN_TOKEN", amount: d.amount},
+      handler: {notifyMerchant: (name, data) => console.log("paytm", name, data)}};
+    // As in Paytm's JS Checkout docs: initialise inside CheckoutJS.onLoad
+    const start = () => window.Paytm.CheckoutJS.init(config).then(() => window.Paytm.CheckoutJS.invoke()).catch(x => err.textContent = "Checkout error: " + x);
+    if (window.Paytm && window.Paytm.CheckoutJS && window.Paytm.CheckoutJS.onLoad) window.Paytm.CheckoutJS.onLoad(start); else start();
+  };
+  document.head.appendChild(s);
+};
+</script>
+</body>
+</html>

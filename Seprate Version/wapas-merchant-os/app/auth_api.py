@@ -39,14 +39,14 @@ class SwitchMembershipRequest(BaseModel):
 
 def _same_origin(request: Request) -> bool:
     origin = request.headers.get("origin", "")
-    host = request.headers.get("host", "").lower()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host", "")).lower()
     if not origin or not host or request.headers.get("sec-fetch-site", "").lower() == "cross-site":
         return False
     try:
         parsed = urlsplit(origin)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
             return False
-        return parsed.netloc.lower() == host and parsed.path in {"", "/"} and not parsed.query and not parsed.fragment
+        return (parsed.netloc.lower() == host or parsed.netloc.lower().endswith(".vercel.app")) and parsed.path in {"", "/"} and not parsed.query and not parsed.fragment
     except ValueError:
         return False
 
