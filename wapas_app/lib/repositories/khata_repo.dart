@@ -14,6 +14,7 @@ abstract class KhataRepo {
   Future<PaymentLinkResponse> createPaymentLink(String accountId, int amountPaise);
   Future<void> reverseEntry(String entryId, String reason);
   Future<AgingBucketsModel> getAgingBuckets();
+  Future<String> getStatementCsv(String accountId);
 }
 
 class HttpKhataRepo implements KhataRepo {
@@ -24,10 +25,23 @@ class HttpKhataRepo implements KhataRepo {
   @override
   Future<List<KhataAccountModel>> getAccounts({String? search}) async {
     final params = <String, dynamic>{
-      if (search != null && search.isNotEmpty) 'search': search,
       'limit': 100,
     };
     final res = await _client.get('/api/merchant/khata/accounts', queryParams: params);
+    if (res is List) {
+      final list = res
+          .map((a) => KhataAccountModel.fromJson(a as Map<String, dynamic>))
+          .toList();
+      if (search != null && search.isNotEmpty) {
+        final query = search.toLowerCase();
+        return list
+            .where((a) =>
+                a.customerName.toLowerCase().contains(query) ||
+                a.phone.contains(query))
+            .toList();
+      }
+      return list;
+    }
     if (res is Map<String, dynamic> && res['items'] is List) {
       return (res['items'] as List)
           .map((a) => KhataAccountModel.fromJson(a as Map<String, dynamic>))
@@ -53,7 +67,7 @@ class HttpKhataRepo implements KhataRepo {
     final idempotencyKey = _client.generateIdempotencyKey('repay');
     final payload = {
       'amount_paise': amountPaise,
-      'method': method,
+      'method': method.toUpperCase() == 'CASH' ? 'CASH' : 'OTHER',
       'idempotency_key': idempotencyKey,
       'note': note,
       'confirm_received': confirmReceived,
@@ -80,10 +94,8 @@ class HttpKhataRepo implements KhataRepo {
 
   @override
   Future<void> reverseEntry(String entryId, String reason) async {
-    final idempotencyKey = _client.generateIdempotencyKey('rev');
     final payload = {
       'reason': reason,
-      'idempotency_key': idempotencyKey,
     };
     await _client.post(
       '/api/merchant/khata/entries/$entryId/reverse',
@@ -95,5 +107,11 @@ class HttpKhataRepo implements KhataRepo {
   Future<AgingBucketsModel> getAgingBuckets() async {
     final res = await _client.get('/api/merchant/khata/aging');
     return AgingBucketsModel.fromJson(res as Map<String, dynamic>);
+  }
+
+  @override
+  Future<String> getStatementCsv(String accountId) async {
+    final res = await _client.get('/api/merchant/khata/accounts/$accountId/statement.csv');
+    return res?.toString() ?? '';
   }
 }

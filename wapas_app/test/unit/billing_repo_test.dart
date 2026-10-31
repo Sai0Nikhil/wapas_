@@ -2,8 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wapas_app/core/network/api_client.dart';
 import 'package:wapas_app/repositories/billing_repo.dart';
 import 'package:wapas_app/repositories/catalog_repo.dart';
-import 'package:wapas_app/models/billing_models.dart';
-import 'package:wapas_app/models/catalog_models.dart';
+
 
 class MockApiClient extends ApiClient {
   dynamic nextGetResponse;

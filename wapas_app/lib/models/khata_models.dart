@@ -18,11 +18,11 @@ class KhataAccountModel {
   factory KhataAccountModel.fromJson(Map<String, dynamic> json) {
     return KhataAccountModel(
       id: (json['id'] ?? '').toString(),
-      customerName: (json['customer_name'] ?? json['name'] ?? 'Customer').toString(),
+      customerName: (json['name'] ?? json['customer_name'] ?? 'Customer').toString(),
       phone: (json['phone'] ?? '').toString(),
-      balancePaise: (json['balance_paise'] as num?)?.toInt() ?? 0,
+      balancePaise: (json['outstanding_paise'] ?? json['balance_paise'] as num?)?.toInt() ?? 0,
       creditLimitPaise: (json['credit_limit_paise'] as num?)?.toInt() ?? 0,
-      lastActivityAt: json['last_activity_at']?.toString(),
+      lastActivityAt: (json['created_at'] ?? json['last_activity_at'])?.toString(),
     );
   }
 
@@ -51,14 +51,17 @@ class KhataEntryModel {
   });
 
   factory KhataEntryModel.fromJson(Map<String, dynamic> json) {
+    final delta = (json['delta_paise'] as num?)?.toInt() ?? (json['amount_paise'] as num?)?.toInt() ?? 0;
+    final isDebit = delta > 0 || json['entry_type'] == 'CREDIT_GIVEN' || json['type'] == 'DEBIT';
+
     return KhataEntryModel(
       id: (json['id'] ?? '').toString(),
-      type: (json['type'] ?? 'DEBIT').toString(),
-      amountPaise: (json['amount_paise'] as num?)?.toInt() ?? 0,
-      balanceAfterPaise: (json['balance_after_paise'] as num?)?.toInt() ?? 0,
+      type: isDebit ? 'DEBIT' : 'CREDIT',
+      amountPaise: delta.abs(),
+      balanceAfterPaise: (json['running_balance_paise'] ?? json['balance_after_paise'] as num?)?.toInt() ?? 0,
       note: (json['note'] ?? '').toString(),
       createdAt: (json['created_at'] ?? '').toString(),
-      isReversed: json['is_reversed'] == true,
+      isReversed: json['reverses_entry_id'] != null || json['is_reversed'] == true,
     );
   }
 
@@ -88,10 +91,10 @@ class AgingBucketsModel {
         : <String, dynamic>{};
 
     return AgingBucketsModel(
-      zeroToThirty: (buckets['0_30'] as num?)?.toInt() ?? 0,
-      thirtyOneToSixty: (buckets['31_60'] as num?)?.toInt() ?? 0,
-      sixtyOneToNinety: (buckets['61_90'] as num?)?.toInt() ?? 0,
-      ninetyPlus: (buckets['90_plus'] as num?)?.toInt() ?? 0,
+      zeroToThirty: (json['current_paise'] ?? buckets['0_30'] as num?)?.toInt() ?? 0,
+      thirtyOneToSixty: (json['days_31_60_paise'] ?? buckets['31_60'] as num?)?.toInt() ?? 0,
+      sixtyOneToNinety: (json['days_61_90_paise'] ?? buckets['61_90'] as num?)?.toInt() ?? 0,
+      ninetyPlus: (json['days_over_90_paise'] ?? buckets['90_plus'] as num?)?.toInt() ?? 0,
       totalOutstandingPaise: (json['total_outstanding_paise'] as num?)?.toInt() ?? 0,
     );
   }
@@ -114,9 +117,9 @@ class PaymentLinkResponse {
 
   factory PaymentLinkResponse.fromJson(Map<String, dynamic> json) {
     return PaymentLinkResponse(
-      paymentLinkId: (json['payment_link_id'] ?? '').toString(),
-      shortUrl: (json['short_url'] ?? '').toString(),
-      qrCode: (json['qr_code'] ?? '').toString(),
+      paymentLinkId: (json['payment_id'] ?? json['payment_link_id'] ?? '').toString(),
+      shortUrl: (json['checkout_url'] ?? json['short_url'] ?? '').toString(),
+      qrCode: (json['checkout_url'] ?? json['qr_code'] ?? '').toString(),
       amountPaise: (json['amount_paise'] as num?)?.toInt() ?? 0,
     );
   }
