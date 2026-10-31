@@ -70,6 +70,7 @@ class StoreState extends ChangeNotifier {
     KhataCustomer(id: "KH-2", name: "Anand Medicals", phone: "+91 99120 77881", totalDue: 5800.0, lastTransactionDate: "Yesterday", status: "Overdue"),
     KhataCustomer(id: "KH-3", name: "Pooja Sharma", phone: "+91 97412 33221", totalDue: 820.0, lastTransactionDate: "28 Oct", status: "Good Standing"),
     KhataCustomer(id: "KH-4", name: "Rajesh Tailors", phone: "+91 98845 99001", totalDue: 1350.0, lastTransactionDate: "27 Oct", status: "Active"),
+    KhataCustomer(id: "KH-5", name: "Rao Garu", phone: "+91 98480 54321", totalDue: 450.0, lastTransactionDate: "25 Oct", status: "Active"),
   ];
 
   // Soundbox Live Feed
@@ -130,6 +131,37 @@ class StoreState extends ChangeNotifier {
     );
     notifyListeners();
   }
+
+  // Update existing customer balance (e.g. from Voice Sarvam entry or payment)
+  void updateKhataCustomerDue(String customerId, double deltaDue) {
+    final idx = khataList.indexWhere((c) => c.id == customerId);
+    if (idx != -1) {
+      final old = khataList[idx];
+      khataList[idx] = KhataCustomer(
+        id: old.id,
+        name: old.name,
+        phone: old.phone,
+        totalDue: (old.totalDue + deltaDue).clamp(0.0, 999999.0),
+        lastTransactionDate: "Today (Sarvam Voice)",
+        status: "Active",
+      );
+      notifyListeners();
+    }
+  }
+
+  // Smart matching for potential duplicates
+  KhataCustomer? findMatchingCustomer(String queryName) {
+    if (queryName.trim().isEmpty) return null;
+    final cleanQuery = queryName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    for (var c in khataList) {
+      final cleanName = c.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (cleanName.contains(cleanQuery) || cleanQuery.contains(cleanName) || cleanName == cleanQuery) {
+        return c;
+      }
+    }
+    return null;
+  }
+
 
   // Recovery approval action
   void approveCase(String caseId) {
