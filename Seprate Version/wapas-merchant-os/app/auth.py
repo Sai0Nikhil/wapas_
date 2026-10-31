@@ -498,6 +498,9 @@ def login_throttle_keys(username: str, client_ip: str) -> tuple[str, str]:
 
 
 def login_is_throttled(username: str, client_ip: str) -> bool:
+    from .config import get_settings
+    if get_settings().app_env.lower() in {"development", "test"}:
+        return False
     keys = login_throttle_keys(username, client_ip)
     now = datetime.now(timezone.utc)
     with session() as s:
