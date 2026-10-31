@@ -38,14 +38,14 @@ Respond ONLY with valid JSON:
   "recovery_msg": "polite message in {customer_lang} with recovery link placeholder"
 }}"""
 
-            headers = {"API-Subscription-Key": s.sarvam_api_key, "Content-Type": "application/json"}
+            headers = {"api-subscription-key": s.sarvam_api_key, "Content-Type": "application/json"}
             payload = {
                 "model": s.sarvam_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.2,
             }
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                res = await client.post(f"{s.sarvam_base_url}/chat/completions", headers=headers, json=payload)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(f"{s.sarvam_base_url}/v1/chat/completions", headers=headers, json=payload)
                 if res.status_code == 200:
                     raw_content = res.json()["choices"][0]["message"]["content"]
                     # parse json
