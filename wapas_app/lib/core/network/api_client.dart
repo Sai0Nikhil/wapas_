@@ -37,12 +37,20 @@ class ApiClient {
   String? get csrfToken => _csrfToken;
   bool get isAuthenticated => _sessionCookie != null && _sessionCookie!.isNotEmpty;
 
+  static String _normalizeUrl(String url) {
+    var u = url.trim().replaceAll(RegExp(r'/+$'), '');
+    if (u.startsWith('http://') && !u.contains('127.0.0.1') && !u.contains('localhost') && !u.contains('10.0.2.2')) {
+      u = 'https://${u.substring(7)}';
+    }
+    return u;
+  }
+
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedUrl = prefs.getString(_prefsKeyUrl);
       if (savedUrl != null && savedUrl.isNotEmpty && !savedUrl.contains('10.0.2.2')) {
-        _baseUrl = savedUrl.trim().replaceAll(RegExp(r'/+$'), '');
+        _baseUrl = _normalizeUrl(savedUrl);
       } else {
         _baseUrl = _defaultUrl;
       }
@@ -59,7 +67,7 @@ class ApiClient {
   }
 
   Future<void> setBaseUrl(String newUrl) async {
-    _baseUrl = newUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    _baseUrl = _normalizeUrl(newUrl);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsKeyUrl, _baseUrl);
@@ -250,6 +258,17 @@ class ApiClient {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         if (response.body.isEmpty) return null;
         return jsonDecode(response.body);
+      }
+
+      // If 307/308/301/302 redirect occurred (e.g. ngrok http -> https), upgrade and retry
+      if ((response.statusCode == 301 || response.statusCode == 302 || response.statusCode == 307 || response.statusCode == 308) &&
+          response.headers['location'] != null) {
+        final loc = response.headers['location']!;
+        if (loc.startsWith('https://')) {
+          final uri = Uri.parse(loc);
+          await setBaseUrl('${uri.scheme}://${uri.host}${uri.hasPort && uri.port != 443 ? ':${uri.port}' : ''}');
+          return await _sendMutating(method, path, body: body, extraHeaders: extraHeaders, retryCsrf: retryCsrf);
+        }
       }
 
       // If 403 CSRF failure occurred, try refreshing CSRF via /api/auth/session once
