@@ -85,6 +85,15 @@ class FakeRecoveryRepo implements RecoveryRepo {
     skipCalled = true;
     return 'SKIPPED';
   }
+
+  @override
+  Future<bool> demoPay(String caseId) async => true;
+
+  @override
+  Future<bool> replayWebhook(String caseId) async => true;
+
+  @override
+  Future<bool> resetIncident() async => true;
 }
 
 void main() {

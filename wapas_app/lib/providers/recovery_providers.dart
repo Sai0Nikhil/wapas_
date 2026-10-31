@@ -194,6 +194,43 @@ class RecoveryTowerNotifier extends Notifier<RecoveryTowerState> {
       return false;
     }
   }
+
+  Future<bool> demoPay(String caseId) async {
+    try {
+      final repo = ref.read(recoveryRepoProvider);
+      final ok = await repo.demoPay(caseId);
+      await fetchState(isRefresh: true);
+      return ok;
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Payment simulation failed: $e');
+      return false;
+    }
+  }
+
+  Future<bool> replayWebhook(String caseId) async {
+    try {
+      final repo = ref.read(recoveryRepoProvider);
+      final ok = await repo.replayWebhook(caseId);
+      await fetchState(isRefresh: true);
+      return ok;
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Webhook replay failed: $e');
+      return false;
+    }
+  }
+
+  Future<bool> resetIncident() async {
+    state = state.copyWith(isRefreshing: true);
+    try {
+      final repo = ref.read(recoveryRepoProvider);
+      final ok = await repo.resetIncident();
+      await fetchState(isRefresh: true);
+      return ok;
+    } catch (e) {
+      state = state.copyWith(isRefreshing: false, errorMessage: 'Reset failed: $e');
+      return false;
+    }
+  }
 }
 
 final recoveryTowerProvider =

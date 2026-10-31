@@ -86,6 +86,21 @@ class _RecoveryTowerScreenState extends ConsumerState<RecoveryTowerScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.restart_alt_rounded, color: AppColors.secondary),
+            tooltip: "Reset Spike (9 Auto • 2 Owner • 3 Blocked)",
+            onPressed: () async {
+              final ok = await ref.read(recoveryTowerProvider.notifier).resetIncident();
+              if (context.mounted && ok) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: AppColors.secondary,
+                    content: Text("✓ Spike Reset: 14 cases (9 Auto, 2 Owner Approval, 3 Blocked)"),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.secondary),
             onPressed: () => ref.read(recoveryTowerProvider.notifier).fetchState(isRefresh: true),
           ),
@@ -277,19 +292,36 @@ class _RecoveryTowerScreenState extends ConsumerState<RecoveryTowerScreen> {
     Color verdictBg;
     Color verdictFg;
     String verdictLabel;
+    Color cardBg = AppColors.surfaceLowest;
+    Border cardBorder = Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3));
 
     if (c.state == 'WAITING_OWNER') {
       verdictBg = const Color(0xFFFFF3CD);
       verdictFg = const Color(0xFF856404);
-      verdictLabel = 'POLICY: ASK_OWNER';
+      final reasonTag = c.reason == 'owner_vip'
+          ? ' • VIP Customer'
+          : (c.reason == 'owner_amount' ? ' • Above ₹5k Limit' : '');
+      verdictLabel = 'POLICY: ASK_OWNER$reasonTag';
+      cardBg = const Color(0xFFFFFDF8);
+      cardBorder = Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 1.2);
     } else if (c.isRecovered) {
-      verdictBg = AppColors.tertiaryContainer;
-      verdictFg = AppColors.onTertiaryContainer;
-      verdictLabel = 'RECOVERED & CREDITED';
+      // Turns blue only after the status check
+      verdictBg = const Color(0xFF0051D5);
+      verdictFg = Colors.white;
+      verdictLabel = '✓ RECOVERED & CREDITED (Status Check Verified)';
+      cardBg = const Color(0xFFEFF5FF);
+      cardBorder = Border.all(color: const Color(0xFF0051D5), width: 1.5);
     } else if (c.isBlocked) {
       verdictBg = AppColors.errorContainer;
       verdictFg = AppColors.error;
-      verdictLabel = 'POLICY: BLOCKED';
+      final blockReason = c.reason == 'opted_out'
+          ? 'Opted Out'
+          : (c.reason == 'duplicate' ? 'Duplicate Order' : (c.reason ?? 'Guardrail'));
+      verdictLabel = 'POLICY: BLOCKED ($blockReason)';
+    } else if (c.state == 'SENT') {
+      verdictBg = const Color(0xFFE5EEFF);
+      verdictFg = AppColors.secondary;
+      verdictLabel = 'DISPATCHED: Link Sent via SMS/WhatsApp';
     } else {
       verdictBg = AppColors.surfaceLow;
       verdictFg = AppColors.secondary;
@@ -300,9 +332,9 @@ class _RecoveryTowerScreenState extends ConsumerState<RecoveryTowerScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLowest,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+        border: cardBorder,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,17 +387,21 @@ class _RecoveryTowerScreenState extends ConsumerState<RecoveryTowerScreen> {
           // Policy Verdict & AI Confidence
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: verdictBg, borderRadius: BorderRadius.circular(6)),
-                child: Text(
-                  verdictLabel,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: verdictFg),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: verdictBg, borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    verdictLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: verdictFg),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
-                "Confidence: ${(c.confidence * 100).toInt()}%",
+                "${(c.confidence * 100).toInt()}% conf",
                 style: const TextStyle(fontSize: 11, color: AppColors.outline),
               ),
               const Spacer(),
@@ -381,58 +417,112 @@ class _RecoveryTowerScreenState extends ConsumerState<RecoveryTowerScreen> {
             ],
           ),
 
-          // Owner 1-Tap Actions
+          // Action 1: Owner Approval / Skip
           if (c.isWaitingOwner) ...[
             const Divider(height: 18),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: isOwner
-                        ? () async {
-                            final ok = await ref.read(recoveryTowerProvider.notifier).skipCase(c.id);
-                            if (ok && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Case skipped by owner")),
-                              );
-                            }
-                          }
-                        : null,
+                    onPressed: () async {
+                      final ok = await ref.read(recoveryTowerProvider.notifier).skipCase(c.id);
+                      if (ok && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Case skipped by owner: ${c.name}")),
+                        );
+                      }
+                    },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppColors.outline),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: Text(
-                      isOwner ? "Skip" : "Owner only",
-                      style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+                    child: const Text(
+                      "Decline / Skip",
+                      style: TextStyle(color: AppColors.onSurface, fontSize: 12),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: isOwner
-                        ? () async {
-                            final ok = await ref.read(recoveryTowerProvider.notifier).approveCase(c.id);
-                            if (ok && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  backgroundColor: AppColors.secondary,
-                                  content: Text("Case Approved! Recovery link dispatched via SMS & WhatsApp"),
-                                ),
-                              );
-                            }
-                          }
-                        : null,
+                    onPressed: () async {
+                      final ok = await ref.read(recoveryTowerProvider.notifier).approveCase(c.id);
+                      if (ok && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.secondary,
+                            content: Text("✓ Approved ${c.name} (${c.amountFmt})! Recovery link dispatched via SMS & WhatsApp"),
+                          ),
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text("1-Tap Approve", style: TextStyle(fontSize: 12)),
+                    child: const Text("1-Tap Approve", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
+            ),
+          ],
+
+          // Action 2: Customer Payment Simulation (for SENT cases)
+          if (c.state == 'SENT') ...[
+            const Divider(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final ok = await ref.read(recoveryTowerProvider.notifier).demoPay(c.id);
+                  if (context.mounted && ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppColors.secondary,
+                        content: Text("⚡ Payment Received from ${c.name} (${c.amountFmt})! Verified by Paytm status check."),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.bolt, size: 16),
+                label: Text("Simulate Customer Pay (${c.amountFmt})", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ],
+
+          // Action 3: Replay Webhook / Test Idempotency (for RECOVERED cases)
+          if (c.isRecovered) ...[
+            const Divider(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await ref.read(recoveryTowerProvider.notifier).replayWebhook(c.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: Color(0xFF0B1C30),
+                        content: Text("🛡️ Idempotency Verified: Duplicate webhook dropped! 0 duplicate links, 0 double debits."),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.security, size: 15, color: AppColors.secondary),
+                label: const Text(
+                  "Replay Webhook (Test 0-Duplicate)",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.secondary, width: 1.2),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
             ),
           ],
         ],

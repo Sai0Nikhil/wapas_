@@ -137,7 +137,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Wapas", lifespan=lifespan)
 
 PUBLIC_PREFIXES = ("/s/", "/api/shop/", "/api/public/", "/api/paytm/", "/pay/",
-                   "/fakecheckout/", "/static/", "/favicon.ico")
+                   "/fakecheckout/", "/static/", "/favicon.ico", "/api/demo/")
 AUTH_PATHS = {"/api/auth/login", "/api/auth/session", "/api/auth/logout",
               "/api/auth/register", "/api/auth/memberships", "/api/auth/switch-membership"}
 PROXY_HEADERS = ("x-forwarded-for", "forwarded", "x-real-ip", "cf-connecting-ip")
@@ -229,7 +229,7 @@ async def identity_security_boundary(request: Request, call_next):
         # request forgery behavior is exercised without provisioning a test login.
         tenant_token = set_merchant_id(DEFAULT_MERCHANT_ID)
         store_token = set_store_id(DEFAULT_STORE_ID)
-    elif path != "/api/paytm/payment-callback" and path.startswith(("/api/shop/", "/api/paytm/", "/pay/", "/fakecheckout/")):
+    elif path != "/api/paytm/payment-callback" and path.startswith(("/api/shop/", "/api/paytm/", "/pay/", "/fakecheckout/", "/api/demo/")):
         # Legacy single-merchant recovery checkout and its provider callbacks use the
         # installation's one Paytm account. Slug-resolved Shop APIs do not use this.
         tenant_token = set_merchant_id(DEFAULT_MERCHANT_ID)

@@ -7,6 +7,9 @@ abstract class RecoveryRepo {
   Future<Map<String, dynamic>> fetchEvidence(String caseId);
   Future<String> approveCase(String caseId);
   Future<String> skipCase(String caseId);
+  Future<bool> demoPay(String caseId);
+  Future<bool> replayWebhook(String caseId);
+  Future<bool> resetIncident();
 }
 
 class HttpRecoveryRepo implements RecoveryRepo {
@@ -48,5 +51,23 @@ class HttpRecoveryRepo implements RecoveryRepo {
       return res['state'].toString();
     }
     return 'SKIPPED';
+  }
+
+  @override
+  Future<bool> demoPay(String caseId) async {
+    final res = await _client.post('/api/demo/pay/$caseId');
+    return res is Map<String, dynamic> && res['ok'] == true;
+  }
+
+  @override
+  Future<bool> replayWebhook(String caseId) async {
+    final res = await _client.post('/api/demo/duplicate-callback/$caseId');
+    return res is Map<String, dynamic> && res['ok'] == true;
+  }
+
+  @override
+  Future<bool> resetIncident() async {
+    final res = await _client.post('/api/demo/reset-incident');
+    return res is Map<String, dynamic> && res['ok'] == true;
   }
 }

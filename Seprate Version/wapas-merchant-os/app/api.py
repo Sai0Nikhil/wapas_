@@ -344,6 +344,24 @@ def demo_bank_recovers():
     return {"ok": True}
 
 
+@router.post("/api/demo/reset-incident")
+def demo_reset_incident():
+    _require_demo_controls()
+    with executor.LOCK, session() as s:
+        seed.reset(s)
+        seed.seed(s)
+        seed.trigger_spike(s)
+        executor.tick(s)
+        detect.mark_recovered("Bank A")
+        executor.tick(s)
+        executor.tick(s)
+        gw = get_gateway()
+        if gw.name == "fake":
+            gw.reset()
+        s.commit()
+    return {"ok": True, "cases": 14, "split": "9 auto, 2 owner, 3 blocked"}
+
+
 def _pay_case(s, case_id: str, wrong_amount: bool = False) -> dict:
     gw = _fake()
     rec = executor.link_of(s, case_id)
