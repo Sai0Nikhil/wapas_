@@ -15,6 +15,11 @@ class HttpOrdersRepo implements OrdersRepo {
   @override
   Future<List<StoreOrderModel>> getOrders() async {
     final res = await _client.get('/api/merchant/orders');
+    if (res is List) {
+      return res
+          .map((o) => StoreOrderModel.fromJson(o as Map<String, dynamic>))
+          .toList();
+    }
     if (res is Map<String, dynamic> && res['orders'] is List) {
       return (res['orders'] as List)
           .map((o) => StoreOrderModel.fromJson(o as Map<String, dynamic>))
@@ -25,7 +30,10 @@ class HttpOrdersRepo implements OrdersRepo {
 
   @override
   Future<void> fulfillOrder(String orderId) async {
-    await _client.post('/api/merchant/orders/$orderId/fulfill');
+    await _client.post(
+      '/api/merchant/orders/$orderId/fulfill',
+      body: {'confirm': true},
+    );
   }
 
   @override
