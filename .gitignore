@@ -15,3 +15,4 @@ phone_*.png
 wapas_app/build/
 wapas_app/.dart_tool/
 .gradle/
+video_build/
