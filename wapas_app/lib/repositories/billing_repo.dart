@@ -7,8 +7,8 @@ abstract class BillingRepo {
   Future<BillModel> setLine(String billId, String productId, double quantity, {int? unitPricePaise});
   Future<BillModel> removeLine(String billId, String lineId);
   Future<BillModel> issueBill(String billId);
-  Future<BillModel> recordPayment(String billId, String method);
-  Future<BillModel> chargeToKhata(String billId, String customerPhone, String customerName);
+  Future<Map<String, dynamic>> recordPayment(String billId);
+  Future<Map<String, dynamic>> chargeToKhata(String billId, {String? note, DateTime? dueAt});
   Future<void> cancelBill(String billId);
   Future<String> getReceiptHtml(String billId);
 }
@@ -38,9 +38,8 @@ class HttpBillingRepo implements BillingRepo {
 
   @override
   Future<BillModel> setLine(String billId, String productId, double quantity, {int? unitPricePaise}) async {
-    final payload = {
+    final payload = <String, dynamic>{
       'quantity': quantity,
-      'unit_price_paise': ?unitPricePaise,
     };
     final res = await _client.put(
       '/api/merchant/bills/$billId/lines/$productId',
@@ -57,33 +56,28 @@ class HttpBillingRepo implements BillingRepo {
 
   @override
   Future<BillModel> issueBill(String billId) async {
-    final idempotencyKey = _client.generateIdempotencyKey('issue');
-    final payload = {'idempotency_key': idempotencyKey};
-    final res = await _client.post('/api/merchant/bills/$billId/issue', body: payload);
+    final res = await _client.post('/api/merchant/bills/$billId/issue');
     return BillModel.fromJson(res as Map<String, dynamic>);
   }
 
   @override
-  Future<BillModel> recordPayment(String billId, String method) async {
+  Future<Map<String, dynamic>> recordPayment(String billId) async {
     final idempotencyKey = _client.generateIdempotencyKey('pay');
     final payload = {
-      'method': method,
       'idempotency_key': idempotencyKey,
     };
     final res = await _client.post('/api/merchant/bills/$billId/payments', body: payload);
-    return BillModel.fromJson(res as Map<String, dynamic>);
+    return res is Map<String, dynamic> ? res : <String, dynamic>{};
   }
 
   @override
-  Future<BillModel> chargeToKhata(String billId, String customerPhone, String customerName) async {
-    final idempotencyKey = _client.generateIdempotencyKey('khata');
+  Future<Map<String, dynamic>> chargeToKhata(String billId, {String? note, DateTime? dueAt}) async {
     final payload = {
-      'customer_phone': customerPhone,
-      'customer_name': customerName,
-      'idempotency_key': idempotencyKey,
+      'note': note ?? 'Counter bill credit',
+      if (dueAt != null) 'due_at': dueAt.toIso8601String(),
     };
     final res = await _client.post('/api/merchant/bills/$billId/khata', body: payload);
-    return BillModel.fromJson(res as Map<String, dynamic>);
+    return res is Map<String, dynamic> ? res : <String, dynamic>{};
   }
 
   @override

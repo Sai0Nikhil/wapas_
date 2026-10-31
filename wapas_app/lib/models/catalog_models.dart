@@ -22,16 +22,24 @@ class ProductModel {
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
+    final pricePaise = json['unit_price_paise'] as num?;
+    final priceVal = pricePaise != null
+        ? (pricePaise / 100.0)
+        : ((json['price'] as num?)?.toDouble() ?? 0.0);
+    final stockVal = num.tryParse((json['available'] ?? json['current_stock'] ?? '0').toString())?.toDouble() ?? 0.0;
+    final minStockVal = num.tryParse((json['low_stock_threshold'] ?? json['min_stock_alert'] ?? '0').toString())?.toDouble() ?? 0.0;
+    final activeVal = json['status'] == 'ACTIVE' || json['is_active'] != false;
+
     return ProductModel(
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
       category: (json['category'] ?? 'General').toString(),
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      price: priceVal,
       unit: (json['unit'] ?? 'each').toString(),
       barcode: (json['barcode'] ?? '').toString(),
-      currentStock: (json['current_stock'] as num?)?.toDouble() ?? 0.0,
-      minStockAlert: (json['min_stock_alert'] as num?)?.toDouble() ?? 0.0,
-      isActive: json['is_active'] != false,
+      currentStock: stockVal,
+      minStockAlert: minStockVal,
+      isActive: activeVal,
     );
   }
 

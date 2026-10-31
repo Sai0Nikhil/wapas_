@@ -1,20 +1,23 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../theme/app_theme.dart';
-import '../services/store_state.dart';
-import '../models/app_models.dart';
+import '../models/catalog_models.dart';
+import '../providers/app_providers.dart';
+import '../providers/billing_providers.dart';
 
-class PosBillingScreen extends StatefulWidget {
+class PosBillingScreen extends ConsumerStatefulWidget {
   final Function(int)? onNavigateTab;
   const PosBillingScreen({super.key, this.onNavigateTab});
 
   @override
-  State<PosBillingScreen> createState() => _PosBillingScreenState();
+  ConsumerState<PosBillingScreen> createState() => _PosBillingScreenState();
 }
 
-class _PosBillingScreenState extends State<PosBillingScreen> {
+class _PosBillingScreenState extends ConsumerState<PosBillingScreen> {
   String searchQuery = "";
   final ImagePicker _picker = ImagePicker();
 
@@ -41,7 +44,7 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
                 children: [
                   CircularProgressIndicator(color: AppColors.secondary),
                   SizedBox(height: 14),
-                  Text("Scanning Barcode / Product...", style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text("Scanning Barcode / Label...", style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -60,9 +63,14 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
       final rawText = recognizedText.text.trim();
       final lowerText = rawText.toLowerCase();
 
-      // Check against current inventory
-      ProductItem? matchedItem;
-      for (var item in storeState.inventory) {
+      // Check against live catalog items
+      final catalog = ref.read(posBillingProvider).catalog;
+      ProductModel? matchedItem;
+      for (var item in catalog) {
+        if (item.barcode.isNotEmpty && rawText.contains(item.barcode)) {
+          matchedItem = item;
+          break;
+        }
         final lowerName = item.name.toLowerCase();
         final words = lowerName.split(" ");
         for (var w in words) {
@@ -75,7 +83,8 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
       }
 
       if (matchedItem != null) {
-        storeState.addToCart(matchedItem);
+        await ref.read(posBillingProvider.notifier).addToCart(matchedItem);
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: const Color(0xFF2E7D32),
@@ -84,7 +93,7 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text("Added ${matchedItem.name} (₹${matchedItem.price.toStringAsFixed(0)}) to cart!"),
+                  child: Text("Added ${matchedItem.name} (₹${matchedItem.price.toStringAsFixed(0)}) to bill!"),
                 ),
               ],
             ),
@@ -234,18 +243,20 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
-            onPressed: () {
+            onPressed: () async {
               final name = nameCtrl.text.trim();
               final price = double.tryParse(priceCtrl.text) ?? 50.0;
               if (name.isNotEmpty) {
-                storeState.addInventoryProduct(name, price);
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(backgroundColor: const Color(0xFF2E7D32), content: Text("Saved & added '$name' (₹$price) to cart!")),
-                );
+                await ref.read(posBillingProvider.notifier).quickAddProduct(name, price);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(backgroundColor: const Color(0xFF2E7D32), content: Text("Saved & added '$name' (₹$price) to bill!")),
+                  );
+                }
               }
             },
-            child: const Text("SAVE & ADD TO CART"),
+            child: const Text("SAVE & ADD TO BILL"),
           ),
         ],
       ),
@@ -281,7 +292,7 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Draft Bill from Parchi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text("Review extracted items before adding to cart", style: TextStyle(fontSize: 12, color: AppColors.outline)),
+                          Text("Review extracted items before adding to bill", style: TextStyle(fontSize: 12, color: AppColors.outline)),
                         ],
                       ),
                       ClipRRect(
@@ -371,20 +382,25 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
                       ),
                       icon: const Icon(Icons.add_shopping_cart, size: 18),
                       label: Text(
-                        "CONFIRM & ADD ${rows.length} ITEMS TO CART",
+                        "CONFIRM & ADD ${rows.length} ITEMS TO BILL",
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
-                      onPressed: () {
-                        for (var r in rows) {
-                          storeState.addInventoryProduct(r["name"], (r["price"] as num).toDouble());
-                        }
+                      onPressed: () async {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: const Color(0xFF2E7D32),
-                            content: Text("Added ${rows.length} items from Parchi straight into cart!"),
-                          ),
-                        );
+                        for (var r in rows) {
+                          await ref.read(posBillingProvider.notifier).quickAddProduct(
+                            r["name"],
+                            (r["price"] as num).toDouble(),
+                          );
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: const Color(0xFF2E7D32),
+                              content: Text("Added ${rows.length} items from Parchi straight into bill!"),
+                            ),
+                          );
+                        }
                       },
                     ),
                   ),
@@ -399,371 +415,411 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: storeState,
-      builder: (context, _) {
-        final filteredItems = storeState.inventory.where((item) {
-          return item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                 item.category.toLowerCase().contains(searchQuery.toLowerCase());
-        }).toList();
+    final billingState = ref.watch(posBillingProvider);
+    final authState = ref.watch(authNotifierProvider);
+    final rawStoreName = authState.session.storeName;
+    final String storeName = (rawStoreName != null && rawStoreName.isNotEmpty)
+        ? rawStoreName
+        : "Wapas Kirana Store";
 
-        return Scaffold(
-          backgroundColor: AppColors.surface,
-          appBar: AppBar(
-            backgroundColor: AppColors.surfaceLowest,
-            elevation: 0.5,
-            title: Row(
+    final filteredItems = billingState.catalog.where((item) {
+      return item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+             item.category.toLowerCase().contains(searchQuery.toLowerCase()) ||
+             item.barcode.contains(searchQuery);
+    }).toList();
+
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        backgroundColor: AppColors.surfaceLowest,
+        elevation: 0.5,
+        title: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset('assets/images/wapas_logo.png', fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryContainer.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.storefront, size: 16, color: AppColors.secondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    storeName,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.tertiaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(color: AppColors.tertiary, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    "SOUNDBOX LIVE",
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.onTertiaryContainer),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // 1. Prominent Full-Width Quick-Scan Bar at the Top
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            color: AppColors.surfaceLowest,
+            child: Row(
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(shape: BoxShape.circle),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.asset('assets/images/wapas_logo.png', fit: BoxFit.cover),
+                // Button 1: Camera Barcode / Product Scan
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _openCameraForBarcodeOrProduct(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.qr_code_scanner, color: Colors.white, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            "Scan Item",
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondaryContainer.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.storefront, size: 16, color: AppColors.secondary),
-                      const SizedBox(width: 6),
-                      Text(
-                        storeState.storeName,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+
+                // Button 2: Camera Parchi Fast-Billing
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _openCameraForParchiBilling(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE65100),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.tertiaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(color: AppColors.tertiary, shape: BoxShape.circle),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.receipt_long, color: Colors.white, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            "Scan Parchi",
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        "SOUNDBOX LIVE",
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.onTertiaryContainer),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          body: Column(
-            children: [
-              // 1. Prominent Full-Width Quick-Scan Bar at the Top
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                color: AppColors.surfaceLowest,
-                child: Row(
-                  children: [
-                    // Button 1: Camera Barcode / Product Scan
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _openCameraForBarcodeOrProduct(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondaryContainer,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.qr_code_scanner, color: Colors.white, size: 18),
-                              SizedBox(width: 6),
-                              Text(
-                                "Scan Item",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
 
-                    // Button 2: Camera Parchi Fast-Billing
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _openCameraForParchiBilling(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE65100),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.receipt_long, color: Colors.white, size: 18),
-                              SizedBox(width: 6),
-                              Text(
-                                "Scan Parchi",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+          // 2. Search Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: AppColors.surfaceLowest,
+            child: Container(
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLow,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: TextField(
+                onChanged: (val) => setState(() => searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: "Search item, barcode or category...",
+                  hintStyle: const TextStyle(fontSize: 13, color: AppColors.outline),
+                  prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.outline),
+                  suffixIcon: searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () => setState(() => searchQuery = ""),
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
+            ),
+          ),
 
-              // 2. Search Bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                color: AppColors.surfaceLowest,
-                child: Container(
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLow,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: TextField(
-                    onChanged: (val) => setState(() => searchQuery = val),
-                    decoration: const InputDecoration(
-                      hintText: "Search item, barcode or brand...",
-                      hintStyle: TextStyle(fontSize: 13, color: AppColors.outline),
-                      prefixIcon: Icon(Icons.search, size: 18, color: AppColors.outline),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Item Catalogue List
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: filteredItems.length,
-                  separatorBuilder: (ctx, idx) => const SizedBox(height: 8),
-                  itemBuilder: (ctx, idx) {
-                    final item = filteredItems[idx];
-                    return Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceLowest,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: item.quantityInCart > 0
-                              ? AppColors.secondary.withValues(alpha: 0.5)
-                              : AppColors.outlineVariant.withValues(alpha: 0.3),
-                          width: item.quantityInCart > 0 ? 1.5 : 1,
+          // Item Catalogue List
+          Expanded(
+            child: billingState.isCatalogLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredItems.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.outline),
+                            const SizedBox(height: 12),
+                            Text(
+                              searchQuery.isEmpty ? "No products found in catalogue" : "No results for '$searchQuery'",
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.outline),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text("Add New Product"),
+                              onPressed: () => _showQuickAddProductDialog(
+                                context,
+                                detectedName: searchQuery.isNotEmpty ? searchQuery : "New Kirana Item",
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: filteredItems.length,
+                        separatorBuilder: (ctx, idx) => const SizedBox(height: 8),
+                        itemBuilder: (ctx, idx) {
+                          final item = filteredItems[idx];
+                          final qtyInCart = billingState.getQuantityForProduct(item.id);
+
+                          return Container(
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.surfaceContainer,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.shopping_bag_outlined, color: AppColors.secondary),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  "${item.weight} • Stock: ${item.stock} left",
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "₹${item.price.toStringAsFixed(0)}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: AppColors.onSurface,
-                                ),
+                              color: AppColors.surfaceLowest,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: qtyInCart > 0
+                                    ? AppColors.secondary.withValues(alpha: 0.5)
+                                    : AppColors.outlineVariant.withValues(alpha: 0.3),
+                                width: qtyInCart > 0 ? 1.5 : 1,
                               ),
-                              const SizedBox(height: 4),
-                              item.quantityInCart == 0
-                                  ? InkWell(
-                                      onTap: () => storeState.addToCart(item),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.secondary,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: const Text(
-                                          "ADD",
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 11,
-                                          ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.shopping_bag_outlined, color: AppColors.secondary),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                          color: AppColors.onSurface,
                                         ),
                                       ),
-                                    )
-                                  : Row(
-                                      children: [
-                                        InkWell(
-                                          onTap: () => storeState.removeFromCart(item),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.surfaceContainer,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: const Icon(Icons.remove, size: 14, color: AppColors.onSurface),
-                                          ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        "${item.unit} • Stock: ${item.currentStock.toStringAsFixed(0)} left",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: item.isLowStock ? Colors.orange.shade800 : AppColors.onSurfaceVariant,
+                                          fontWeight: item.isLowStock ? FontWeight.bold : FontWeight.normal,
                                         ),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                                          child: Text(
-                                            "${item.quantityInCart}",
-                                            style: const TextStyle(fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () => storeState.addToCart(item),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.secondary,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: const Icon(Icons.add, size: 14, color: Colors.white),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              // Bottom POS Checkout Dock
-              if (storeState.cartCount > 0)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLowest,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, -3),
-                      ),
-                    ],
-                  ),
-                  child: SafeArea(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "${storeState.cartCount} ITEMS IN BILL",
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.outline,
-                                    letterSpacing: 0.5,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  "₹${storeState.cartTotal.toStringAsFixed(2)}",
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.onSurface,
-                                  ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "₹${item.price.toStringAsFixed(0)}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: AppColors.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    qtyInCart == 0
+                                        ? InkWell(
+                                            onTap: () => ref.read(posBillingProvider.notifier).addToCart(item),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.secondary,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                "ADD",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : Row(
+                                            children: [
+                                              InkWell(
+                                                onTap: () => ref.read(posBillingProvider.notifier).removeFromCart(item),
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(4),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.surfaceContainer,
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Icon(Icons.remove, size: 14, color: AppColors.onSurface),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                child: Text(
+                                                  "${qtyInCart.toInt()}",
+                                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                              InkWell(
+                                                onTap: () => ref.read(posBillingProvider.notifier).addToCart(item),
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(4),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.secondary,
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Icon(Icons.add, size: 14, color: Colors.white),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                  ],
                                 ),
                               ],
                             ),
-                            Row(
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () => storeState.clearCart(),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.error,
-                                    side: const BorderSide(color: AppColors.error),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  ),
-                                  child: const Text("Clear"),
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  onPressed: () => _showPaymentOptions(context),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.secondary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                  icon: const Icon(Icons.arrow_forward, size: 18),
-                                  label: const Text(
-                                    "COLLECT",
-                                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                                  ),
-                                ),
-                              ],
+                          );
+                        },
+                      ),
+          ),
+
+          // Bottom POS Checkout Dock
+          if (billingState.cartCount > 0)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLowest,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "${billingState.cartCount} ITEMS IN BILL • #${billingState.bill?.billNumber ?? ''}",
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.outline,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "₹${billingState.cartTotal.toStringAsFixed(2)}",
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            OutlinedButton(
+                              onPressed: () => ref.read(posBillingProvider.notifier).clearCart(),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.error,
+                                side: const BorderSide(color: AppColors.error),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              ),
+                              child: const Text("Clear"),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: () => _showPaymentOptions(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.secondary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              icon: const Icon(Icons.arrow_forward, size: 18),
+                              label: const Text(
+                                "COLLECT",
+                                style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                              ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
-            ],
-          ),
-        );
-      },
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   void _showPaymentOptions(BuildContext context) {
+    final billingState = ref.read(posBillingProvider);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surfaceLowest,
@@ -783,7 +839,7 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                "Total Amount: ₹${storeState.cartTotal.toStringAsFixed(2)}",
+                "Bill Total: ₹${billingState.cartTotal.toStringAsFixed(2)}",
                 style: const TextStyle(fontSize: 14, color: AppColors.secondary, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 16),
@@ -791,20 +847,14 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(color: AppColors.surfaceLow, borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.qr_code, color: AppColors.secondary),
+                  child: const Icon(Icons.qr_code_2, color: AppColors.secondary),
                 ),
                 title: const Text("Paytm Dynamic UPI QR", style: TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: const Text("Verified with Paytm Soundbox live trigger"),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.pop(ctx);
-                  storeState.completeCheckout("Paytm QR");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      backgroundColor: AppColors.tertiary,
-                      content: Text("Payment Verified! Paytm Soundbox announced successfully!"),
-                    ),
-                  );
+                  _showDynamicUpiQrDialog(context);
                 },
               ),
               const Divider(),
@@ -817,12 +867,12 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
                 title: const Text("Cash Payment", style: TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: const Text("Print physical thermal receipt"),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  storeState.completeCheckout("Cash");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Cash bill saved & inventory deducted")),
-                  );
+                  final success = await ref.read(posBillingProvider.notifier).completeCashPayment();
+                  if (success && context.mounted) {
+                    _showReceiptDialog(context);
+                  }
                 },
               ),
               const Divider(),
@@ -835,30 +885,188 @@ class _PosBillingScreenState extends State<PosBillingScreen> {
                 title: const Text("Add to Khata (उधार खाता)", style: TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: const Text("Record debit • Wapas AI monitors recovery"),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  storeState.completeCheckout("Khata");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      duration: const Duration(seconds: 4),
-                      content: const Text("Recorded to Khata! Wapas AI is tracking this case."),
-                      action: SnackBarAction(
-                        label: "RECOVERY TOWER",
-                        textColor: Colors.amberAccent,
-                        onPressed: () {
-                          if (widget.onNavigateTab != null) {
-                            widget.onNavigateTab!(1); // Switch to Recovery Tower tab
-                          }
-                        },
-                      ),
-                    ),
+                  final success = await ref.read(posBillingProvider.notifier).completeKhataPayment(
+                    note: 'Counter bill credit',
                   );
+                  if (success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        duration: const Duration(seconds: 4),
+                        content: const Text("Recorded to Khata! Wapas AI is tracking this case."),
+                        action: SnackBarAction(
+                          label: "RECOVERY TOWER",
+                          textColor: Colors.amberAccent,
+                          onPressed: () {
+                            if (widget.onNavigateTab != null) {
+                              widget.onNavigateTab!(1); // Switch to Recovery Tower tab
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                    _showReceiptDialog(context);
+                  }
                 },
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _showDynamicUpiQrDialog(BuildContext context) async {
+    final paymentData = await ref.read(posBillingProvider.notifier).initiateUpiPayment();
+    if (!context.mounted) return;
+
+    final checkoutUrl = paymentData?['checkout_url'] ?? 'http://localhost:8000/pay/demo';
+    final amountPaise = ref.read(posBillingProvider).bill?.totalPaise ?? 0;
+    final totalInr = amountPaise / 100.0;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Consumer(
+        builder: (ctx, ref, _) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: const [
+                Icon(Icons.qr_code_2, color: AppColors.secondary),
+                SizedBox(width: 8),
+                Text("Paytm Dynamic QR", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Scan with Paytm, PhonePe, or GPay to pay ₹${totalInr.toStringAsFixed(2)}",
+                  style: const TextStyle(fontSize: 13, color: AppColors.outline),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.outlineVariant),
+                  ),
+                  child: QrImageView(
+                    data: checkoutUrl,
+                    version: QrVersions.auto,
+                    size: 180,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(width: 8),
+                    Text("Awaiting Soundbox announcement...", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLow,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    "Mode: ${paymentData?['mode'] ?? 'SIMULATED'}",
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                },
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.tertiary,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.check_circle, size: 16),
+                label: const Text("Simulate Verified"),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await ref.read(posBillingProvider.notifier).completeCashPayment();
+                  if (context.mounted) {
+                    _showReceiptDialog(context);
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showReceiptDialog(BuildContext context) {
+    final billing = ref.read(posBillingProvider);
+    final bill = billing.bill;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.check_circle, color: Color(0xFF2E7D32)),
+            SizedBox(width: 8),
+            Text("Bill Issued Successfully", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Bill Number: ${bill?.billNumber ?? 'N/A'}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 4),
+            Text("Customer: ${bill?.customerName ?? 'Counter Customer'}", style: const TextStyle(fontSize: 12, color: AppColors.outline)),
+            const Divider(height: 20),
+            ...?bill?.lines.map((l) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(child: Text("${l.productName} x${l.quantity.toInt()}", style: const TextStyle(fontSize: 12))),
+                      Text("₹${l.subtotalInr.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                )),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Total Paid:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text("₹${bill?.totalInr.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.secondary)),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(posBillingProvider.notifier).startFreshBill();
+            },
+            child: const Text("NEW BILL"),
+          ),
+        ],
+      ),
     );
   }
 }

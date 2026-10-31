@@ -22,6 +22,11 @@ class HttpCatalogRepo implements CatalogRepo {
       'limit': 100,
     };
     final res = await _client.get('/api/merchant/catalog/products', queryParams: params);
+    if (res is List) {
+      return res
+          .map((p) => ProductModel.fromJson(p as Map<String, dynamic>))
+          .toList();
+    }
     if (res is Map<String, dynamic> && res['items'] is List) {
       return (res['items'] as List)
           .map((p) => ProductModel.fromJson(p as Map<String, dynamic>))
@@ -46,7 +51,14 @@ class HttpCatalogRepo implements CatalogRepo {
 
   @override
   Future<ProductModel> addProduct(Map<String, dynamic> data) async {
-    final res = await _client.post('/api/merchant/catalog/products', body: data);
+    // Ensure paise conversion if raw price was provided
+    final payload = Map<String, dynamic>.from(data);
+    if (payload['unit_price_paise'] == null && payload['price'] != null) {
+      payload['unit_price_paise'] = ((payload['price'] as num) * 100).toInt();
+    }
+    payload['product_id'] = payload['product_id'] ?? 'prod_${DateTime.now().millisecondsSinceEpoch}';
+    payload['unit'] = payload['unit'] ?? 'each';
+    final res = await _client.post('/api/merchant/catalog/products', body: payload);
     return ProductModel.fromJson(res as Map<String, dynamic>);
   }
 
@@ -71,6 +83,11 @@ class HttpCatalogRepo implements CatalogRepo {
       'limit': 50,
     };
     final res = await _client.get('/api/merchant/catalog/movements', queryParams: params);
+    if (res is List) {
+      return res
+          .map((m) => StockMovementModel.fromJson(m as Map<String, dynamic>))
+          .toList();
+    }
     if (res is Map<String, dynamic> && res['movements'] is List) {
       return (res['movements'] as List)
           .map((m) => StockMovementModel.fromJson(m as Map<String, dynamic>))

@@ -19,10 +19,10 @@ class BillLineModel {
     return BillLineModel(
       id: (json['id'] ?? '').toString(),
       productId: (json['product_id'] ?? '').toString(),
-      productName: (json['product_name'] ?? json['name'] ?? 'Item').toString(),
-      quantity: (json['quantity'] as num?)?.toDouble() ?? 1.0,
+      productName: (json['name'] ?? json['product_name'] ?? 'Item').toString(),
+      quantity: num.tryParse((json['quantity'] ?? '1').toString())?.toDouble() ?? 1.0,
       unitPricePaise: (json['unit_price_paise'] as num?)?.toInt() ?? 0,
-      subtotalPaise: (json['subtotal_paise'] as num?)?.toInt() ?? 0,
+      subtotalPaise: (json['line_total_paise'] ?? json['subtotal_paise'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -61,7 +61,7 @@ class BillModel {
     return BillModel(
       id: (json['id'] ?? '').toString(),
       billNumber: (json['bill_number'] ?? '').toString(),
-      status: (json['status'] ?? 'DRAFT').toString(),
+      status: (json['state'] ?? json['status'] ?? 'DRAFT').toString(),
       customerName: json['customer_name']?.toString(),
       customerPhone: json['customer_phone']?.toString(),
       totalPaise: (json['total_paise'] as num?)?.toInt() ?? 0,
@@ -69,14 +69,15 @@ class BillModel {
               ?.map((l) => BillLineModel.fromJson(l as Map<String, dynamic>))
               .toList() ??
           [],
-      paymentMethod: json['payment_method']?.toString(),
-      paymentStatus: json['payment_status']?.toString(),
-      qrPayload: json['qr_payload']?.toString(),
+      paymentMethod: (json['payment_provider'] ?? json['payment_method'])?.toString(),
+      paymentStatus: (json['payment_status'] ?? json['payment_state'])?.toString(),
+      qrPayload: (json['payment_url'] ?? json['checkout_url'] ?? json['qr_payload'])?.toString(),
       createdAt: json['created_at']?.toString(),
     );
   }
 
   double get totalInr => totalPaise / 100.0;
   bool get isDraft => status == 'DRAFT';
-  bool get isPaid => status == 'PAID' || paymentStatus == 'VERIFIED';
+  bool get isIssued => status == 'ISSUED';
+  bool get isPaid => status == 'PAID' || paymentStatus == 'VERIFIED' || paymentStatus == 'SUCCESS';
 }
