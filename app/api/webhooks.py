@@ -36,7 +36,7 @@ async def paytm_webhook(request: Request, session: Session = Depends(get_session
 
     if status == "TXN_FAILURE":
         amount_paise = int(Decimal(str(data.get("TXNAMOUNT") or "0")) * 100)
-        case = intake.register_failure(
+        case = await intake.register_failure(
             session, order_id=order_id, txn_id=txn_id, amount_paise=amount_paise,
             bank=str(data.get("BANKNAME") or ""), resp_code=str(data.get("RESPCODE") or ""),
             resp_msg=str(data.get("RESPMSG") or ""), customer_ref=str(data.get("CUSTID") or "unknown"),

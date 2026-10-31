@@ -17,7 +17,7 @@ def issue_token(case_id: int, decision: str):
 
 
 @router.post("/{token}")
-def decide(token: str, session: Session = Depends(get_session)):
+async def decide(token: str, session: Session = Depends(get_session)):
     parsed = verify_token(token)
     if not parsed:
         raise HTTPException(400, "invalid or expired token")
@@ -32,5 +32,7 @@ def decide(token: str, session: Session = Depends(get_session)):
     session.add(case)
     session.add(EvidenceLog(case_id=case.id, kind="policy", detail=f"owner decision: {decision}"))
     session.commit()
-    # TODO: if approved -> executor.run(case)
+    if decision == "approve":
+        from app.services import executor
+        await executor.execute_recovery_action(session, case.id, channel="telegram")
     return {"result": decision, "case_id": case.id}

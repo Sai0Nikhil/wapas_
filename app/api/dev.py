@@ -20,10 +20,10 @@ class SimulateFailure(BaseModel):
 
 
 @router.post("/simulate-failure")
-def simulate_failure(body: SimulateFailure, session: Session = Depends(get_session)):
+async def simulate_failure(body: SimulateFailure, session: Session = Depends(get_session)):
     if get_settings().app_env != "dev":
         raise HTTPException(404)
-    case = intake.register_failure(
+    case = await intake.register_failure(
         session, order_id=f"SIM-{uuid.uuid4().hex[:8]}", txn_id=uuid.uuid4().hex[:10],
         amount_paise=round(body.amount_inr * 100), bank=body.bank,
         resp_msg=body.resp_msg, customer_ref=body.customer_ref,
