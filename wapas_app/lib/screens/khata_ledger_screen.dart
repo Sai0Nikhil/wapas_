@@ -93,6 +93,11 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.camera_alt_rounded, color: AppColors.secondary),
+            tooltip: "Scan Parchi (OCR)",
+            onPressed: () => _openVoiceRecordModal(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.mic, color: AppColors.secondary),
             tooltip: "Voice Record (Sarvam AI)",
             onPressed: () => _openVoiceRecordModal(context),
@@ -251,6 +256,13 @@ class _KhataLedgerScreenState extends ConsumerState<KhataLedgerScreen> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF6C63FF),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.document_scanner_rounded),
+        label: const Text("Scan Parchi / Voice", style: TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: () => _openVoiceRecordModal(context),
       ),
     );
   }

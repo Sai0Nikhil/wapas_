@@ -80,7 +80,7 @@ class VoiceService {
     final request = http.MultipartRequest('POST', Uri.parse(_sarvamSttUrl))
       ..headers['api-subscription-key'] = _sarvamKey
       ..fields['language_code'] = langCode
-      ..fields['model'] = 'saaras:v2'
+      ..fields['model'] = 'saaras:v3'
       ..fields['with_timestamps'] = 'false'
       ..files.add(http.MultipartFile.fromBytes(
         'file',
